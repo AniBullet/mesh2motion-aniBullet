@@ -29,24 +29,28 @@ export class MarketingBootstrap {
     const dragon_button: HTMLElement | null = document.getElementById('load-dragon-model-button')
 
     human_button?.addEventListener('click', () => {
+      this.mesh2motion_engine.load_model_step.clear_loaded_model_data()
       this.mesh2motion_engine.load_model_step.load_model_file('../models/model-human.glb', 'glb')
       this.skeleton_type = SkeletonType.Human
       this.change_active_skeleton(human_button)
     })
 
     fox_button?.addEventListener('click', () => {
+      this.mesh2motion_engine.load_model_step.clear_loaded_model_data()
       this.mesh2motion_engine.load_model_step.load_model_file('../models/model-fox.glb', 'glb')
       this.skeleton_type = SkeletonType.Quadraped
       this.change_active_skeleton(fox_button)
     })
 
     bird_button?.addEventListener('click', () => {
+      this.mesh2motion_engine.load_model_step.clear_loaded_model_data()
       this.mesh2motion_engine.load_model_step.load_model_file('../models/model-bird.glb', 'glb')
       this.skeleton_type = SkeletonType.Bird
       this.change_active_skeleton(bird_button)
     })
 
     dragon_button?.addEventListener('click', () => {
+      this.mesh2motion_engine.load_model_step.clear_loaded_model_data()
       this.mesh2motion_engine.load_model_step.load_model_file('../models/model-dragon.glb', 'glb')
       this.skeleton_type = SkeletonType.Dragon
       this.change_active_skeleton(dragon_button)

@@ -20,6 +20,8 @@ export class StepLoadModel extends EventTarget {
   private final_mesh_data: Scene = new Scene()
   private debug_model_loading: boolean = false
 
+  private model_display_name: string = 'Imported Model'
+
   // there can be multiple objects in a model, so store them in a list
   private readonly geometry_list: BufferGeometry[] = []
   private readonly material_list: Material[] = []
@@ -36,32 +38,28 @@ export class StepLoadModel extends EventTarget {
   objects_count = 0
 
   // function that goes through all our geometry data and calculates how many triangles we have
-  private calculate_mesh_metrics (): void {
+  private calculate_mesh_metrics (buffer_geometry: BufferGeometry[]): void {
     let triangle_count = 0
     let vertex_count = 0
 
     // calculate all the loaded mesh data
-    this.models_geometry_list().forEach((geometry) => {
+    buffer_geometry.forEach((geometry) => {
       triangle_count += geometry.attributes.position.count / 3
       vertex_count += geometry.attributes.position.count
     })
 
     this.triangle_count = triangle_count
     this.vertex_count = vertex_count
-    this.objects_count = this.models_geometry_list().length
+    this.objects_count = buffer_geometry.length
   }
 
-  private calculate_geometry_list (): void {
-    if (this.final_mesh_data === undefined) {
-      console.error('original model not loaded yet. Cannot do calculations')
-    }
-
+  private calculate_geometry_and_materials (scene_to_analyze: Scene): void {
     // clear geometry and material list in case we run this again
     // this empties the array in place, and doesn't need to create a new array
     this.geometry_list.length = 0
     this.material_list.length = 0
 
-    this.final_mesh_data.traverse((child: Object3D) => {
+    scene_to_analyze.traverse((child: Object3D) => {
       if (child.type === 'Mesh') {
         const geometry_to_add: BufferGeometry = (child as Mesh).geometry.clone()
         geometry_to_add.name = child.name
@@ -79,10 +77,6 @@ export class StepLoadModel extends EventTarget {
         this.material_list.push(new_material)
       }
     })
-
-    // debugging type data
-    this.calculate_mesh_metrics()
-    console.log(`Vertex count:${this.vertex_count}    Triangle Count:${this.triangle_count}     Object Count:${this.objects_count} `)
   }
 
   public begin (): void {
@@ -157,6 +151,17 @@ export class StepLoadModel extends EventTarget {
     }
 
     return file_extension
+  }
+
+  public clear_loaded_model_data (): void {
+    this.original_model_data = new Scene()
+    this.final_mesh_data = new Scene()
+    this.geometry_list.length = 0
+    this.material_list.length = 0
+    this.vertex_count = 0
+    this.triangle_count = 0
+    this.objects_count = 0
+    this.mesh_has_broken_material = false
   }
 
   public load_model_file (model_file_path: string | ArrayBuffer | null, file_extension: string): void {
@@ -247,10 +252,10 @@ export class StepLoadModel extends EventTarget {
     })
 
     // strip out stuff that we are not bringing into the model step
-    const clean_scene_with_only_models = this.strip_out_all_unecessary_model_data(this.original_model_data)
+    const clean_scene_with_only_models: Scene = this.strip_out_all_unecessary_model_data(this.original_model_data)
 
     // Some objects come in very large, which makes it harder to work with
-    // scale everything down to a max height
+    // scale everything down to a max height. mutate the clean scene object
     this.scale_model_on_import_if_extreme(clean_scene_with_only_models)
 
     // loop through each child in scene and reset rotation
@@ -260,12 +265,14 @@ export class StepLoadModel extends EventTarget {
       child.rotation.set(0, 0, 0)
     })
 
-    console.log('Model loaded', clean_scene_with_only_models)
+    this.calculate_geometry_and_materials(clean_scene_with_only_models)
+    this.calculate_mesh_metrics(this.geometry_list) // this needs to happen after calculate_geometry_and_materials
+    console.log(`Vertex count:${this.vertex_count}    Triangle Count:${this.triangle_count}     Object Count:${this.objects_count} `)
 
     // assign the final cleaned up model to the original model data
-    this.final_mesh_data = clean_scene_with_only_models
+    this.final_mesh_data = this.model_meshes()
 
-    this.calculate_geometry_list()
+    console.log('final mesh data should be prepared at this point', this.final_mesh_data)
 
     this.dispatchEvent(new CustomEvent('modelLoaded'))
   }
@@ -273,12 +280,12 @@ export class StepLoadModel extends EventTarget {
   private strip_out_all_unecessary_model_data (model_data: Scene): Scene {
     // create a new scene object, and only include meshes
     const new_scene = new Scene()
-    new_scene.name = 'Imported Model'
+    new_scene.name = this.model_display_name
 
     model_data.traverse((child) => {
       let new_mesh: Mesh
 
-      // if the schild is a skinned mesh, create a new mesh object and apply the geometry and material
+      // if the child is a skinned mesh, create a new mesh object and apply the geometry and material
       if (child.type === 'SkinnedMesh') {
         new_mesh = new Mesh((child as SkinnedMesh).geometry, (child as SkinnedMesh).material)
         new_mesh.name = child.name
@@ -349,13 +356,15 @@ export class StepLoadModel extends EventTarget {
   }
 
   public model_meshes (): Scene {
-    if (this.final_mesh_data !== undefined) {
+    // if the scene has some children in it, that means we already built it
+    // this function gets called when we enter the application
+    if (this.final_mesh_data.children.length > 0) {
       return this.final_mesh_data
     }
 
     // create a new scene object, and only include meshes
     const new_scene = new Scene()
-    new_scene.name = 'Model data'
+    new_scene.name = this.model_display_name
 
     // do a for loop to add all the meshes to the scene from the geometry and material list
     for (let i = 0; i < this.geometry_list.length; i++) {

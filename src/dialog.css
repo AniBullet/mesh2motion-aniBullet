@@ -35,7 +35,7 @@
 
 .modal-dialog-content * {
    color: var(--text-primary);
-   font-size: 1.4rem;
+   font-size: 1.1rem;
    margin: 0.5rem;
    line-height: 1.7rem;
 }

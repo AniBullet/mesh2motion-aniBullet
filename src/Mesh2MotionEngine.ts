@@ -452,7 +452,7 @@ export class Mesh2MotionEngine {
   public remove_imported_model (): void {
     if (this.load_model_step.model_meshes() !== undefined) {
       const imported_model = this.scene.getObjectByName('Imported Model')
-      if (imported_model !== null) {
+      if (imported_model !== undefined) {
         this.scene.remove(imported_model)
       }
     }
