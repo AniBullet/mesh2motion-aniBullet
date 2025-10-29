@@ -173,6 +173,19 @@ export class StepWeightSkin extends EventTarget {
     this.bone_index_to_test = index
   }
 
+  /**
+   * Configure head weight correction settings for the solver
+   * @param enabled Whether head weight correction is enabled
+   * @param height The preview plane height threshold
+   */
+  public set_head_weight_correction_settings (enabled: boolean, height: number): void {
+    // Only apply to the SolverDistanceChildTargeting solver
+    if (this.bone_skinning_formula instanceof SolverDistanceChildTargeting) {
+      this.bone_skinning_formula.set_head_weight_correction_enabled(enabled)
+      this.bone_skinning_formula.set_preview_plane_height(height)
+    }
+  }
+
   public calculate_weights (): number[][] {
     if (this.bone_skinning_formula === undefined) {
       console.warn('Tried to calculate_weights() but bone_skinning_formula is null for some reason!')

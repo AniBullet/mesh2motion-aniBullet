@@ -485,6 +485,12 @@ export class Mesh2MotionEngine {
     this.weight_skin_step.create_bone_formula_object(this.edit_skeleton_step.armature(), this.edit_skeleton_step.algorithm(),
       this.load_skeleton_step.skeleton_type())
 
+    // Pass head weight correction settings to the weight skin step
+    this.weight_skin_step.set_head_weight_correction_settings(
+      this.edit_skeleton_step.use_head_weight_correction(),
+      this.edit_skeleton_step.get_preview_plane_height()
+    )
+
     this.weight_skin_step.create_binding_skeleton()
 
     // add geometry data needed for skinning
@@ -524,6 +530,12 @@ export class Mesh2MotionEngine {
       this.weight_skin_step.set_debug_scene_object(this.debugging_visual_object)
       this.weight_skin_step.set_bone_index_to_test(-1)
     }
+
+    // Pass head weight correction settings to the weight skin step
+    this.weight_skin_step.set_head_weight_correction_settings(
+      this.edit_skeleton_step.use_head_weight_correction(),
+      this.edit_skeleton_step.get_preview_plane_height()
+    )
 
     // Don't do skinning operation if there are bones outside of the mesh
     // that messes up the bone envelope calculation

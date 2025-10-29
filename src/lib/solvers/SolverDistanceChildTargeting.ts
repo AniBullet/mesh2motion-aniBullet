@@ -8,6 +8,7 @@ import { Utility } from '../Utilities.js'
 import { SkeletonType } from '../enums/SkeletonType.js'
 import { AbstractAutoSkinSolver } from './AbstractAutoSkinSolver.js'
 import { Generators } from '../Generators.js'
+import { HeadWeightCorrector } from './HeadWeightCorrector.js'
 
 /**
  * SolverDistanceChildTargeting
@@ -15,6 +16,24 @@ import { Generators } from '../Generators.js'
   * This adds extra logic to target ares in the arms and hips to help with assigning weights
  */
 export default class SolverDistanceChildTargeting extends AbstractAutoSkinSolver {
+  // Head weight correction properties
+  private use_head_weight_correction: boolean = false
+  private preview_plane_height: number = 1.4
+
+  /**
+   * Enable or disable head weight correction
+   */
+  public set_head_weight_correction_enabled (enabled: boolean): void {
+    this.use_head_weight_correction = enabled
+  }
+
+  /**
+   * Set the preview plane height for head weight correction
+   */
+  public set_preview_plane_height (height: number): void {
+    this.preview_plane_height = height
+  }
+
   /**
    * Returns an array of vertex indices whose weights do not sum to 1.0 (within a small epsilon).
    */
@@ -173,6 +192,17 @@ export default class SolverDistanceChildTargeting extends AbstractAutoSkinSolver
     // go through each incorrect weight influence. Fill in the 0.00 weight with the remaining weght so
     // all the weights add up to 1.0
     this.normalize_weights_with_incorrect_vertices(skin_weights)
+
+    // Apply head weight correction if enabled
+    if (this.use_head_weight_correction) {
+      const head_weight_corrector = new HeadWeightCorrector(
+        this.geometry,
+        this.get_bone_master_data(),
+        this.preview_plane_height
+      )
+      console.log('applying the head weight correction...')
+      head_weight_corrector.apply_head_weight_correction(skin_indices, skin_weights)
+    }
 
     console.log('do we have any leftover incorrect weights ', this.find_vertices_with_incorrect_weight_sum(skin_weights))
 
