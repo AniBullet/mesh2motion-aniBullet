@@ -77,7 +77,12 @@ export class HeadWeightCorrector {
       'thumb',
       'elbow',
       'forearm',
-      'upperarm'
+      'upperarm',
+      'thumb',
+      'index',
+      'middle',
+      'ring',
+      'pinky'
     ]
     const arm_bone_indices: number[] = []
     for (let i = 0; i < this.bones_master_data.length; i++) {
