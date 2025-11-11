@@ -296,28 +296,33 @@ export class StepAnimationsListing extends EventTarget {
       })
     }
 
+    // reset A-Pose arm extension button
+    this.ui.dom_reset_a_pose_button?.addEventListener('click', (event) => {
+      const extend_arm_value: number = 0 // reset to zero
+      if (this.ui.dom_extend_arm_numeric_input !== null) {
+        this.ui.dom_extend_arm_numeric_input.value = extend_arm_value.toString()
+      }
+      if (this.ui.dom_extend_arm_range_input !== null) {
+        this.ui.dom_extend_arm_range_input.value = extend_arm_value.toString()
+      }
+      this.update_a_pose_value(extend_arm_value)
+    })
+
     // A-Pose arm extension event listener
     this.ui.dom_extend_arm_numeric_input?.addEventListener('input', (event) => {
       const extend_arm_value: number = Utility.parse_input_number(this.ui.dom_extend_arm_numeric_input?.value)
       if (this.ui.dom_extend_arm_range_input !== null) {
-        // Copy the value from the numeric onto the slider input.
         this.ui.dom_extend_arm_range_input.value = extend_arm_value.toString()
       }
-      this.warp_arm_amount = extend_arm_value
-
-      this.rebuild_warped_animations()
-      this.play_animation(this.current_playing_index)
+      this.update_a_pose_value(extend_arm_value)
     })
+
     this.ui.dom_extend_arm_range_input?.addEventListener('input', (event) => {
       const extend_arm_value: number = Utility.parse_input_number(this.ui.dom_extend_arm_range_input?.value)
       if (this.ui.dom_extend_arm_numeric_input !== null) {
-        // Copy the value from the slider onto the numeric input.
         this.ui.dom_extend_arm_numeric_input.value = extend_arm_value.toString()
       }
-      this.warp_arm_amount = extend_arm_value
-
-      this.rebuild_warped_animations()
-      this.play_animation(this.current_playing_index)
+      this.update_a_pose_value(extend_arm_value)
     })
 
     // check for changes to mirror animations checkbox
@@ -331,6 +336,13 @@ export class StepAnimationsListing extends EventTarget {
 
     // helps ensure we don't add event listeners multiple times
     this.has_added_event_listeners = true
+  }
+
+  // three different things might update this value: numeric input, range input, or reset button
+  private update_a_pose_value (new_value: number): void {
+    this.warp_arm_amount = new_value
+    this.rebuild_warped_animations()
+    this.play_animation(this.current_playing_index)
   }
 
   public build_animation_clip_ui (animation_clips_to_load: AnimationClip[], theme_manager: ThemeManager): void {

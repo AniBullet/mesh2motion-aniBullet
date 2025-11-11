@@ -185,16 +185,28 @@ export class StepLoadSkeleton extends EventTarget {
     // scale skeleton controls
     this.ui.dom_scale_skeleton_input?.addEventListener('input', (event) => {
       // range sliders have rounding errors, so we round the value to avoid issues
-      this.skeleton_scale_percentage = parseFloat((event.target as HTMLInputElement).value)
+      const new_value: number = Number((event.target as HTMLInputElement).value)
+      this.update_skeleton_scale_to_value(new_value)
+    })
 
-      const display_value: string = Math.round(this.skeleton_scale_percentage * 100).toString() + '%'
-      this.ui.dom_scale_skeleton_percentage_display!.textContent = display_value
+    // reset the skeleton scale button
+    this.ui.dom_reset_skeleton_scale_button?.addEventListener('click', () => {
+      this.update_skeleton_scale_to_value(1.0)
+    })
+  }
 
-      // re-add the preview skeleton with the new scale
-      add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale_percentage).catch((err) => {
+  private update_skeleton_scale_to_value (new_value: number): void {
+    this.skeleton_scale_percentage = Number(new_value)
+    const display_value: string = Math.round(new_value * 100).toString() + '%'
+
+    if (this.ui.dom_scale_skeleton_percentage_display !== null) {
+      this.ui.dom_scale_skeleton_percentage_display.textContent = display_value
+    }
+    // re-add the preview skeleton with the new scale
+    add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale_percentage)
+      .catch((err) => {
         console.error('error loading preview skeleton: ', err)
       })
-    })
   }
 
   public load_skeleton_file (file_path: string): void {

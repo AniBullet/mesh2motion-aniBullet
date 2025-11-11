@@ -108,6 +108,9 @@ export class StepEditSkeleton extends EventTarget {
         this.enable_head_weight_correction = false // force setting to false in case it was enabled before
       }
     }
+
+    // show/hide settings for the head correct depending on if it is checked
+    this.show_preview_plane_options()
   }
 
   public begin (main_scene: Scene, skeleton_type: SkeletonType): void {
@@ -289,6 +292,8 @@ export class StepEditSkeleton extends EventTarget {
     this.ui.dom_preview_plane_checkbox?.addEventListener('change', (event) => {
       const target = event.target as HTMLInputElement
       this.set_use_head_weight_correction(target.checked)
+
+      this.show_preview_plane_options()
     })
 
     this.ui.dom_preview_plane_height_input?.addEventListener('input', (event) => {
@@ -304,6 +309,12 @@ export class StepEditSkeleton extends EventTarget {
         this.ui.dom_preview_plane_height_label.textContent = this.head_weight_correction_height.toFixed(2)
       }
     })
+  }
+
+  private show_preview_plane_options (): void {
+    if (this.ui.dom_preview_plane_setting_container !== null) {
+      this.ui.dom_preview_plane_setting_container.style.display = this.use_head_weight_correction() ? 'flex' : 'none'
+    }
   }
 
   // returning back to edit skeleton step later will call this to reset undo state

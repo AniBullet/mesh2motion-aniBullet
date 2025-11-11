@@ -89,7 +89,7 @@
                     <div style="text-align: center; font-size: 1.5rem">or</div>
                     
                     <div class="alternate-background-section">
-                        <p style="margin: 0">Reference model:</p>
+                        <p style="margin: 0">Reference model</p>
                         <select id="model-selection">
                             <option value="models/model-human.glb">Human</option>
                             <option value="models/model-fox.glb">Fox</option>
@@ -136,7 +136,7 @@
 
 
                         <div style="display: flex; flex-direction: column; gap: 1rem;">
-                            <span>Skeleton template:</span>
+                            <span>Skeleton template</span>
                             <select id="skeleton-selection">
                                 <option value="select-skeleton">Select a skeleton</option>
                                 <option value="human">Human</option>
@@ -150,8 +150,8 @@
                         <!-- Hand skeleton options for human skeleton -->
                         <div id="hand-skeleton-options" class="alternate-background-section"  >
 
-                            <span>
-                                Hand Options:
+                            <span style="display: flex; gap: 1rem;">
+                                <span>Hand Options</span>
                                 <span class="material-symbols-outlined" data-tippy-content="Variations on which finger bones you want to keep. Single Hand Bone removes all fingers and keeps only the hand bone.">help</span>
                             </span>
 
@@ -166,9 +166,21 @@
 
                         <!-- scale skeleton to get it close to the model size -->
                          <div id="scale-skeleton-controls" style="display: none; flex-direction: column;">
-                            <div style="display: flex; flex-direction: row; align-items: center;">
+                            <div style="
+                                display: flex;
+                                flex-direction: row;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 1rem;
+                            ">
+
                                 <label style="display:inline-flex">Scale skeleton</label>
                                 <span class="material-symbols-outlined" data-tippy-content="Adjust the overall scale of the skeleton">help</span>
+
+                                <button class="secondary-button" id="reset-skeleton-scale-button">
+                                    <img src="images/icons/reset.svg" alt="Reset Skeleton Scale" width="20" height="20" />
+                                </button>
+
                             </div>
                             <div style="display: flex; flex-direction: row; gap: 1rem; justify-content: flex-start; align-items: center;">
                                 <span id="scale-skeleton-percentage-display">100%</span>
@@ -272,8 +284,8 @@
                         <span class="material-symbols-outlined" data-tippy-content="If you are having issues with the arms distorting your head (e.g. chibi characters), use a divider to help define the head area.">help</span>
                     </div>
                     
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <label for="preview-plane-height-input">Plane Height:</label>
+                    <div id="preview-plane-setting-container" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label for="preview-plane-height-input">Height:</label>
                         <input type="range" id="preview-plane-height-input" min="0.20" max="2.00" step="0.01" value="0.50" />
                         <span id="preview-plane-height-label" style="width: 2rem;">0.50</span>
                     </div>
@@ -320,9 +332,19 @@
 
                     <!-- slider to control arm extension (hide this feature until the base functionality is more stable) -->
                     <div id="a-pose-correction-options">
-                        <div style="display: flex; flex-direction: row; align-items: center;">
+                        <div style="
+                            display: flex;
+                            flex-direction: row;
+                            align-items: center;
+                            gap: 1rem;
+                            justify-content: center;
+                        ">
                             <label style="display:inline-flex">A-Pose Correction - Open Arms</label>
-                             <span class="material-symbols-outlined" data-tippy-content="If your model uses an A-Pose, this will help expand/contract arms for all animations">help</span>
+                            <span class="material-symbols-outlined" data-tippy-content="If your model uses an A-Pose, this will help expand/contract arms for all animations">help</span>
+
+                            <button class="secondary-button" id="reset-a-pose-button">
+                                <img src="images/icons/reset.svg" alt="Reset A-Pose" width="20" height="20" />
+                            </button>
                         </div>
 
                         <div style="display: flex; flex-direction: row; gap: 1rem; justify-content: flex-start; align-items: center;">

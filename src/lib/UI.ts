@@ -32,6 +32,7 @@ export class UI {
   dom_scale_skeleton_input: HTMLInputElement | null = null
   dom_scale_skeleton_percentage_display: HTMLElement | null = null
   dom_scale_skeleton_controls: HTMLElement | null = null
+  dom_reset_skeleton_scale_button: HTMLButtonElement | null = null
 
   // edit skeleton UI step controls
   dom_selected_bone_label: HTMLElement | null = null
@@ -43,6 +44,7 @@ export class UI {
   dom_preview_plane_checkbox: HTMLInputElement | null = null
   dom_preview_plane_height_input: HTMLInputElement | null = null
   dom_preview_plane_height_label: HTMLElement | null = null
+  dom_preview_plane_setting_container: HTMLElement | null = null
 
   dom_skinning_algorithm_selection: HTMLElement | null = null
   dom_skinned_mesh_tools: HTMLElement | null = null
@@ -60,6 +62,7 @@ export class UI {
   dom_export_button: HTMLButtonElement | null = null
 
   dom_mirror_animations_checkbox: HTMLInputElement | null = null
+  dom_reset_a_pose_button: HTMLButtonElement | null = null
 
   // Animation player controls
   dom_animation_player: HTMLElement | null = null
@@ -117,6 +120,8 @@ export class UI {
     this.dom_hand_skeleton_selection = document.querySelector('#hand-skeleton-selection')
     this.dom_mirror_skeleton_checkbox = document.querySelector('#mirror-skeleton')
     this.dom_scale_skeleton_button = document.querySelector('#scale-skeleton-button')
+    this.dom_reset_skeleton_scale_button = document.querySelector('#reset-skeleton-scale-button')
+
     this.dom_undo_button = document.querySelector('#undo-button')
     this.dom_redo_button = document.querySelector('#redo-button')
 
@@ -130,6 +135,7 @@ export class UI {
     this.dom_preview_plane_checkbox = document.querySelector('#preview-plane-checkbox')
     this.dom_preview_plane_height_input = document.querySelector('#preview-plane-height-input')
     this.dom_preview_plane_height_label = document.querySelector('#preview-plane-height-label')
+    this.dom_preview_plane_setting_container = document.querySelector('#preview-plane-setting-container')
 
     this.dom_bind_pose_button = document.querySelector('#action_bind_pose')
     // this.dom_scale_skeleton_input_box = document.querySelector('#scale-input')
@@ -158,6 +164,7 @@ export class UI {
     this.dom_export_button = document.querySelector('#export-button')
     this.dom_import_animations_button = document.querySelector('#mirror-animations-checkbox')
     this.dom_mirror_animations_checkbox = document.querySelector('#mirror-animations-checkbox')
+    this.dom_reset_a_pose_button = document.querySelector('#reset-a-pose-button')
 
     // Animation player controls
     this.dom_animation_player = document.querySelector('#animation-player')
