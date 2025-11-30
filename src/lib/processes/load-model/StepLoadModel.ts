@@ -8,7 +8,7 @@ import { Scene } from 'three/src/scenes/Scene.js'
 import { Mesh } from 'three/src/objects/Mesh.js'
 import { MathUtils } from 'three/src/math/MathUtils.js'
 import { FrontSide } from 'three/src/constants.js'
-import { MeshPhongMaterial, type BufferGeometry, type Material, type Object3D, type SkinnedMesh } from 'three'
+import { BufferGeometry, MeshPhongMaterial, type Material, type Object3D, type SkinnedMesh } from 'three'
 import { ModalDialog } from '../../ModalDialog.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
@@ -61,8 +61,7 @@ export class StepLoadModel extends EventTarget {
 
     scene_to_analyze.traverse((child: Object3D) => {
       if (child.type === 'Mesh') {
-        const geometry_to_add: BufferGeometry = (child as Mesh).geometry.clone()
-        geometry_to_add.name = child.name
+        const geometry_to_add: BufferGeometry = this.build_geometry_list_from_mesh(child as Mesh)
         this.geometry_list.push(geometry_to_add)
 
         // material is broken somehow, so just use a normal material to help communicate this
@@ -77,6 +76,42 @@ export class StepLoadModel extends EventTarget {
         this.material_list.push(new_material)
       }
     })
+  }
+
+  /**
+   * bring in a mesh object, extract geometry data and return only attributes we need
+   * Removes Interleaved buffer attributes and converted to normal buffer attributes
+   * @param mesh object
+   * @returns Geometry data with Buffer Attributes
+   */
+  private build_geometry_list_from_mesh (child: Mesh): BufferGeometry {
+    // handle normal data buffer attribute data structure
+    const geometry_to_add: BufferGeometry = child.geometry.clone()
+    geometry_to_add.name = child.name
+
+    // the geometry data might be stored as Interleaved buffer,  if it is
+    // we need to convert the data to a reular BufferGeometry for processing later
+    // this way we can normalize processing later
+    if (child.geometry.attributes.position.isInterleavedBufferAttribute) {
+      // console.log('reading interleaved geometry for child mesh. Converting', child.geometry)
+      geometry_to_add.setAttribute('position', child.geometry.attributes.position.clone())
+      geometry_to_add.setAttribute('normal', child.geometry.attributes.normal.clone())
+      geometry_to_add.setAttribute('uv', child.geometry.attributes.uv.clone())
+
+      // set uv2 if it exists
+      if (child.geometry.attributes.uv2 !== undefined) {
+        geometry_to_add.setAttribute('uv2', child.geometry.attributes.uv2.clone())
+      }
+
+      // remove skinIndex and skinWeight if they exist
+      if (child.geometry.attributes.skinIndex !== undefined) {
+        geometry_to_add.deleteAttribute('skinIndex')
+      }
+      if (child.geometry.attributes.skinWeight !== undefined) {
+        geometry_to_add.deleteAttribute('skinWeight')
+      }
+    }
+    return geometry_to_add
   }
 
   public begin (): void {
@@ -259,7 +294,7 @@ export class StepLoadModel extends EventTarget {
     // and creates odd results
     clean_scene_with_only_models.traverse((child) => {
       child.rotation.set(0, 0, 0)
-      child.scale.set(1, 1, 1) 
+      child.scale.set(1, 1, 1)
     })
 
     // Some objects come in very large, which makes it harder to work with
