@@ -8,7 +8,7 @@ import { Scene } from 'three/src/scenes/Scene.js'
 import { Mesh } from 'three/src/objects/Mesh.js'
 import { MathUtils } from 'three/src/math/MathUtils.js'
 import { FrontSide } from 'three/src/constants.js'
-import { BufferGeometry, MeshPhongMaterial, type Material, type Object3D, type SkinnedMesh } from 'three'
+import { BufferGeometry, Group, MeshPhongMaterial, Object3DEventMap, type Material, type Object3D, type SkinnedMesh } from 'three'
 import { ModalDialog } from '../../ModalDialog.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
@@ -16,8 +16,11 @@ export class StepLoadModel extends EventTarget {
   private readonly gltf_loader = new GLTFLoader()
   private readonly custom_fbx_loader: CustomFBXLoader = new CustomFBXLoader()
   private readonly ui: UI = UI.getInstance()
-  private original_model_data: Scene = new Scene()
-  private final_mesh_data: Scene = new Scene()
+  private original_model_data: Scene | Group = new Scene()
+  private final_mesh_data: Scene = new Scene() // mesh data used when creating the skinned mesh
+
+  // model data used for retargeting process. Only used during retargeting processes
+  private final_retargetable_model_data: Group<Object3DEventMap> = new Group()
   private debug_model_loading: boolean = false
 
   private model_display_name: string = 'Imported Model'
@@ -33,12 +36,20 @@ export class StepLoadModel extends EventTarget {
   private mesh_has_broken_material: boolean = false
 
   // controls whether to preserve all objects (bones, lights, etc.) or strip to meshes only
-  private preserve_all_objects: boolean = false
+  private preserve_skinned_mesh: boolean = false
 
   // for debugging, let's count these to help us test performance things better
   vertex_count = 0
   triangle_count = 0
   objects_count = 0
+
+  /**
+   * Skinned mesh data that will be used for retargeting
+   * @returns Loaded Skinned mesh data that will be used for retargeting
+   */
+  public get_final_retargetable_model_data (): Group<Object3DEventMap> {
+    return this.final_retargetable_model_data
+  }
 
   // function that goes through all our geometry data and calculates how many triangles we have
   private calculate_mesh_metrics (buffer_geometry: BufferGeometry[]): void {
@@ -200,15 +211,15 @@ export class StepLoadModel extends EventTarget {
     this.triangle_count = 0
     this.objects_count = 0
     this.mesh_has_broken_material = false
-    this.preserve_all_objects = false
+    this.preserve_skinned_mesh = false
   }
 
   /**
    * 
    * @param preserve 
    */
-  public set_preserve_all_objects (preserve: boolean): void {
-    this.preserve_all_objects = preserve
+  public set_preserve_skinned_mesh (preserve: boolean): void {
+    this.preserve_skinned_mesh = preserve
   }
 
   public load_model_file (model_file_path: string | ArrayBuffer | null, file_extension: string): void {
@@ -298,8 +309,20 @@ export class StepLoadModel extends EventTarget {
       child.castShadow = true
     })
 
-    // strip out stuff that we are not bringing into the model step
-    const clean_scene_with_only_models: Scene = this.strip_out_all_unecessary_model_data(this.original_model_data)
+    // strip out things differently if we need to preserve skinned meshes or regular meshes
+    let clean_scene_with_only_models: Scene | Group<Object3DEventMap>
+    if (this.preserve_skinned_mesh) {
+      clean_scene_with_only_models = this.strip_out_all_unecessary_model_for_skinned_mesh(this.original_model_data)
+    } else {
+      clean_scene_with_only_models = this.strip_out_all_unecessary_model_data(this.original_model_data)
+    }
+
+    // if there are no valid mesh, or skinned mesh, show error dialog
+    if (clean_scene_with_only_models.children.length === 0) {
+      console.log('Error', 'No valid mesh or skinned mesh found in model. Please ensure the model contains at least one Mesh or SkinnedMesh object.')
+      return
+    }
+    console.log('Model cleaned of unnecessary data. Preparing geometry and materials. How many children?:', clean_scene_with_only_models.children)
 
     // loop through each child in scene and reset rotation
     // if we don't the skinning process doesn't take rotation into account
@@ -313,10 +336,20 @@ export class StepLoadModel extends EventTarget {
     // scale everything down to a max height. mutate the clean scene object
     this.scale_model_on_import_if_extreme(clean_scene_with_only_models)
 
+    // if we are doing retargeting, our work ends here for loading the model
+    // assign the final retargetable model data to the cleaned scene with skinned meshes
+    if (this.preserve_skinned_mesh) {
+      this.final_retargetable_model_data = clean_scene_with_only_models as Group<Object3DEventMap>
+      console.log('assigning final data. should be returning data')
+      this.dispatchEvent(new CustomEvent('modelLoadedForRetargeting'))
+      return
+    }
 
+    // preserved skinned meshes shouldn't be breaking apart mesh data
+    // breaking apart skinned meshes converts it to a regular mesh which we don't want.
     this.calculate_geometry_and_materials(clean_scene_with_only_models)
     this.calculate_mesh_metrics(this.geometry_list) // this needs to happen after calculate_geometry_and_materials
-    console.log(`Vertex count:${this.vertex_count}    Triangle Count:${this.triangle_count}     Object Count:${this.objects_count} `)
+    console.log(`Vertex count:${this.vertex_count}    Triangle Count:${this.triangle_count} Object Count:${this.objects_count} `)
 
     // assign the final cleaned up model to the original model data
     this.final_mesh_data = this.model_meshes()
@@ -326,12 +359,29 @@ export class StepLoadModel extends EventTarget {
     this.dispatchEvent(new CustomEvent('modelLoaded'))
   }
 
-  private strip_out_all_unecessary_model_data (model_data: Scene): Scene {
-    // retargeting needs all the objects, so don't do any stripping
-    if (this.preserve_all_objects) {
-      return model_data
+  private strip_out_all_unecessary_model_for_skinned_mesh (model_data: Scene | Group): Scene | Group<Object3DEventMap> {
+    // Instead of creating a new scene and moving objects,
+    // remove all non-SkinnedMesh objects from the existing scene
+    const objects_to_remove: Object3D[] = []
+
+    // First pass: collect all objects that are NOT SkinnedMeshes
+    model_data.traverse((child) => {
+      if (child.type !== 'SkinnedMesh') {
+        objects_to_remove.push(child)
+      }
+    })
+
+    // Second pass: remove all collected objects
+    for (const obj of objects_to_remove) {
+      if (obj.parent != null) {
+        obj.parent.remove(obj)
+      }
     }
 
+    return model_data
+  }
+
+  private strip_out_all_unecessary_model_data (model_data: Scene): Scene {
     // create a new scene object, and only include meshes
     const new_scene = new Scene()
     new_scene.name = this.model_display_name
@@ -364,7 +414,7 @@ export class StepLoadModel extends EventTarget {
     return new_scene
   }
 
-  private scale_model_on_import_if_extreme (scene_object: Scene): void {
+  private scale_model_on_import_if_extreme (scene_object: Scene | Group<Object3DEventMap>): void {
     let scale_factor: number = 1.0
 
     // calculate all the meshes to find out the max height
@@ -389,17 +439,17 @@ export class StepLoadModel extends EventTarget {
 
     // scale all the meshes down by the calculated amount
     scene_object.traverse((child) => {
-      if (child.type === 'Mesh') {
+      if (child.type === 'Mesh' || child.type === 'SkinnedMesh') {
         (child as Mesh).geometry.scale(scale_factor, scale_factor, scale_factor)
       }
     })
   }
 
-  private calculate_bounding_box (scene_object: Scene): Box3 {
+  private calculate_bounding_box (scene_object: Scene | Group<Object3DEventMap>): Box3 {
     let bounding_box: Box3 = new Box3()
 
     scene_object.traverse((child: Object3D) => {
-      if (child.type === 'Mesh') {
+      if (child.type === 'Mesh' || child.type === 'SkinnedMesh') {
         // see if this new object is a larger bounding box than previous
         const test_bb = new Box3().setFromObject(child)
         if (test_bb.max.x - test_bb.min.x > bounding_box.max.x - bounding_box.min.x ||

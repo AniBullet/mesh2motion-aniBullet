@@ -95,6 +95,13 @@ export class Mesh2MotionEngine {
     this.setup_tooltips()
   }
 
+  /** Eventually make the scene its own singleton/manager class
+   * that we can inject into other classes that need it
+   */
+  public get_scene (): Scene {
+    return this.scene
+  }
+
   /* Add this attribute to an HTML element to give it a tooltip */
   private setup_tooltips (): void {
     tippy('[data-tippy-content]', { theme: 'mesh2motion' })

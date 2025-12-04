@@ -1,5 +1,5 @@
 import { Mesh2MotionEngine } from '../Mesh2MotionEngine.ts'
-import { Vector3 } from 'three'
+import { Group, Object3DEventMap, Skeleton, SkinnedMesh, Vector3 } from 'three'
 
 class RetargetModule {
   private mesh2motion_engine: Mesh2MotionEngine
@@ -45,24 +45,66 @@ class RetargetModule {
       }
 
       // Configure the model loader to preserve all objects (bones, etc.)
-      this.mesh2motion_engine.load_model_step.set_preserve_all_objects(true)
+      this.mesh2motion_engine.load_model_step.set_preserve_skinned_mesh(true)
 
       // Create a URL for the file and load it
       const file_url = URL.createObjectURL(file)
 
       try {
         this.mesh2motion_engine.load_model_step.load_model_file(file_url, file_extension)
-        console.log('Model loading initiated...')
 
-        // TODO: Add listener for load completion
-        // TODO: Validate that the model contains skeletal data
-        // TODO: Show error dialog if no bones found
+        this.mesh2motion_engine.load_model_step.addEventListener('modelLoadedForRetargeting', () => {
+          console.log('Model loaded for retargeting successfully.')
+          URL.revokeObjectURL(file_url) // Revoke the object URL after loading is complete
+
+          // read in mesh2motion engine's retargetable model data
+          const retargetable_meshes = this.mesh2motion_engine.load_model_step.get_final_retargetable_model_data()
+          const is_valid_skinned_mesh = this.validate_skinned_mesh_has_bones(retargetable_meshes)
+          if (is_valid_skinned_mesh) {
+            this.reset_skinned_mesh_to_rest_pose(retargetable_meshes)
+            this.mesh2motion_engine.get_scene().add(retargetable_meshes)
+          }
+        }, { once: true })
       } catch (error) {
         console.error('Error loading model:', error)
         this.showErrorDialog('Error loading model file.')
         URL.revokeObjectURL(file_url) // Clean up the URL
       }
     }
+  }
+
+  private reset_skinned_mesh_to_rest_pose (skinned_meshes_group: Group<Object3DEventMap>): void {
+    skinned_meshes_group.traverse((child) => {
+      if (child.type === 'SkinnedMesh') {
+        const skinned_mesh = child as SkinnedMesh
+        const skeleton: Skeleton = skinned_mesh.skeleton
+        skeleton.pose()
+        skinned_mesh.updateMatrixWorld(true)
+      }
+    })
+  }
+
+  private validate_skinned_mesh_has_bones (retargetable_model: Group<Object3DEventMap> ): boolean {
+    console.log('Validating retargetable model for bones...', retargetable_model)
+
+    // Collect all SkinnedMeshes
+    const skinned_meshes: SkinnedMesh[] = []
+    retargetable_model.traverse((child) => {
+      if (child.type === 'SkinnedMesh') {
+        const skinned_mesh = child as SkinnedMesh
+        skinned_meshes.push(skinned_mesh)
+      }
+    })
+
+    // Check if we have any SkinnedMeshes
+    // TODO: Error can be a dialog box
+    if (skinned_meshes.length === 0) {
+      console.error('No SkinnedMeshes found in model')
+      return false
+    }
+
+    console.log('skinned meshes found. ready to start retargeting process:', skinned_meshes)
+    return true
   }
 
   private showErrorDialog (message: string): void {
