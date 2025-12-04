@@ -302,27 +302,35 @@ export class StepLoadModel extends EventTarget {
   }
 
   private process_loaded_scene (loaded_scene: Scene): void {
-    this.original_model_data = loaded_scene.clone()
-    this.original_model_data.name = 'Cloned Scene'
+    if (this.preserve_skinned_mesh) {
+      this.original_model_data = loaded_scene
+    } else {
+      this.original_model_data = loaded_scene.clone()
+      this.original_model_data.name = 'Cloned Scene'
+    }
 
     this.original_model_data.traverse((child) => {
       child.castShadow = true
     })
 
     // strip out things differently if we need to preserve skinned meshes or regular meshes
+    // retargeting mesh could be a Group object, so accept both and share this variable
     let clean_scene_with_only_models: Scene | Group<Object3DEventMap>
     if (this.preserve_skinned_mesh) {
-      clean_scene_with_only_models = this.strip_out_all_unecessary_model_for_skinned_mesh(this.original_model_data)
+      clean_scene_with_only_models = this.strip_out_retargeting_model_data(this.original_model_data)
     } else {
       clean_scene_with_only_models = this.strip_out_all_unecessary_model_data(this.original_model_data)
     }
 
     // if there are no valid mesh, or skinned mesh, show error dialog
     if (clean_scene_with_only_models.children.length === 0) {
-      console.log('Error', 'No valid mesh or skinned mesh found in model. Please ensure the model contains at least one Mesh or SkinnedMesh object.')
+      if (this.preserve_skinned_mesh) {
+        new ModalDialog('Error loading model', 'No SkinnedMesh found in model file for retargeting').show()
+      } else {
+        new ModalDialog('Error loading model', 'No Mesh found in model file').show()
+      }
       return
     }
-    console.log('Model cleaned of unnecessary data. Preparing geometry and materials. How many children?:', clean_scene_with_only_models.children)
 
     // loop through each child in scene and reset rotation
     // if we don't the skinning process doesn't take rotation into account
@@ -330,6 +338,8 @@ export class StepLoadModel extends EventTarget {
     clean_scene_with_only_models.traverse((child) => {
       child.rotation.set(0, 0, 0)
       child.scale.set(1, 1, 1)
+      child.updateMatrix() // helps re-calculate bounding box for scaling later
+      child.updateMatrixWorld() // helps re-calculate bounding box for scaling later
     })
 
     // Some objects come in very large, which makes it harder to work with
@@ -340,7 +350,6 @@ export class StepLoadModel extends EventTarget {
     // assign the final retargetable model data to the cleaned scene with skinned meshes
     if (this.preserve_skinned_mesh) {
       this.final_retargetable_model_data = clean_scene_with_only_models as Group<Object3DEventMap>
-      console.log('assigning final data. should be returning data')
       this.dispatchEvent(new CustomEvent('modelLoadedForRetargeting'))
       return
     }
@@ -359,26 +368,35 @@ export class StepLoadModel extends EventTarget {
     this.dispatchEvent(new CustomEvent('modelLoaded'))
   }
 
-  private strip_out_all_unecessary_model_for_skinned_mesh (model_data: Scene | Group): Scene | Group<Object3DEventMap> {
-    // Instead of creating a new scene and moving objects,
-    // remove all non-SkinnedMesh objects from the existing scene
-    const objects_to_remove: Object3D[] = []
+  /**
+   * We need to keep parents of skinned meshes and bones for retargeting
+   * This is because the hierarchy is important for retargeting to work properly
+   * @param model_data
+   * @returns Group with everything needed for retargeting (SkinnedMesh, Bones, and their parents)
+   */
+  private strip_out_retargeting_model_data (model_data: Scene | Group): Group<Object3DEventMap> {
+    // Create a new Group to hold only the objects we want to keep
+    const filtered_group = new Group()
+    filtered_group.name = 'Filtered Retargeting Data'
 
-    // First pass: collect all objects that are NOT SkinnedMeshes
+    // Collect objects to keep (SkinnedMesh and Bone objects)
+    const objects_to_keep: Object3D[] = []
     model_data.traverse((child) => {
-      if (child.type !== 'SkinnedMesh') {
-        objects_to_remove.push(child)
+      if (child.type === 'SkinnedMesh' || child.type === 'Bone') {
+        objects_to_keep.push(child)
       }
     })
 
-    // Second pass: remove all collected objects
-    for (const obj of objects_to_remove) {
-      if (obj.parent != null) {
+    // Add kept objects to the new group
+    objects_to_keep.forEach((obj) => {
+      if (obj.parent) {
+        // Remove from current parent first
         obj.parent.remove(obj)
       }
-    }
+      filtered_group.add(obj)
+    })
 
-    return model_data
+    return filtered_group
   }
 
   private strip_out_all_unecessary_model_data (model_data: Scene): Scene {
@@ -424,23 +442,27 @@ export class StepLoadModel extends EventTarget {
     const width = bounding_box.max.x - bounding_box.min.x
     const depth = bounding_box.max.z - bounding_box.min.z
 
-
     const largest_dimension = Math.max(height, width, depth)
 
     // if model is very large, or very small, scale it to 1.5 to help with application
     if (largest_dimension > 0.5 && largest_dimension < 8) {
-      console.log('Model a reasonable size, so no scaling applied: ', largest_dimension, ' units is largest dimension')
+      console.log('Model a reasonable size, so no scaling applied: ', bounding_box, ' units is bounding box')
       return
     } else {
-      console.log('Model is very large or small, so scaling applied: ', largest_dimension, ' units is largest dimension')
+      console.log('Model is very large or small, so scaling applied: ', bounding_box, ' units is bounding box')
     }
 
     scale_factor = 1.5 / height // goal is to scale the model to 1.5 units height (similar to skeleton proportions)
 
     // scale all the meshes down by the calculated amount
     scene_object.traverse((child) => {
-      if (child.type === 'Mesh' || child.type === 'SkinnedMesh') {
-        (child as Mesh).geometry.scale(scale_factor, scale_factor, scale_factor)
+      const child_obj = child as Mesh
+      if (child_obj.geometry) { // only scale if child has geometry data
+        console.log('Scaling mesh:', child_obj, ' by factor of ', scale_factor)
+        child_obj.geometry.scale(scale_factor, scale_factor, scale_factor)
+        // Recompute bounds after geometry modification
+        child_obj.geometry.computeBoundingBox()
+        child_obj.geometry.computeBoundingSphere()
       }
     })
   }
@@ -448,15 +470,13 @@ export class StepLoadModel extends EventTarget {
   private calculate_bounding_box (scene_object: Scene | Group<Object3DEventMap>): Box3 {
     let bounding_box: Box3 = new Box3()
 
+    // see if this new object is a larger bounding box than previous
     scene_object.traverse((child: Object3D) => {
-      if (child.type === 'Mesh' || child.type === 'SkinnedMesh') {
-        // see if this new object is a larger bounding box than previous
-        const test_bb = new Box3().setFromObject(child)
-        if (test_bb.max.x - test_bb.min.x > bounding_box.max.x - bounding_box.min.x ||
-            test_bb.max.y - test_bb.min.y > bounding_box.max.y - bounding_box.min.y ||
-            test_bb.max.z - test_bb.min.z > bounding_box.max.z - bounding_box.min.z) {
-          bounding_box = test_bb
-        }
+      const test_bb = new Box3().setFromObject(child)
+      if (test_bb.max.x - test_bb.min.x > bounding_box.max.x - bounding_box.min.x ||
+          test_bb.max.y - test_bb.min.y > bounding_box.max.y - bounding_box.min.y ||
+          test_bb.max.z - test_bb.min.z > bounding_box.max.z - bounding_box.min.z) {
+        bounding_box = test_bb
       }
     })
 
