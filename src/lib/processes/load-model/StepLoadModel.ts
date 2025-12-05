@@ -215,8 +215,8 @@ export class StepLoadModel extends EventTarget {
   }
 
   /**
-   * 
-   * @param preserve 
+   *
+   * @param preserve
    */
   public set_preserve_skinned_mesh (preserve: boolean): void {
     this.preserve_skinned_mesh = preserve
@@ -379,21 +379,22 @@ export class StepLoadModel extends EventTarget {
     const filtered_group = new Group()
     filtered_group.name = 'Filtered Retargeting Data'
 
-    // Collect objects to keep (SkinnedMesh and Bone objects)
-    const objects_to_keep: Object3D[] = []
+    // Find SkinnedMesh objects and preserve their complete bone hierarchy
+    const skinned_meshes: SkinnedMesh[] = []
     model_data.traverse((child) => {
-      if (child.type === 'SkinnedMesh' || child.type === 'Bone') {
-        objects_to_keep.push(child)
+      if (child.type === 'SkinnedMesh') {
+        skinned_meshes.push(child as SkinnedMesh)
       }
     })
 
-    // Add kept objects to the new group
-    objects_to_keep.forEach((obj) => {
-      if (obj.parent) {
-        // Remove from current parent first
-        obj.parent.remove(obj)
-      }
-      filtered_group.add(obj)
+    // For each SkinnedMesh, clone it along with its skeleton to preserve bone hierarchy
+    skinned_meshes.forEach((skinned_mesh) => {
+      // Clone the SkinnedMesh to avoid modifying the original
+      const cloned_skinned_mesh = skinned_mesh.clone()
+
+      // The clone should preserve the skeleton with proper bone hierarchy
+      // Since we're cloning, the skeleton hierarchy should remain intact
+      filtered_group.add(cloned_skinned_mesh)
     })
 
     return filtered_group

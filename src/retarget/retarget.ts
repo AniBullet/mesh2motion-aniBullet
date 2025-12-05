@@ -65,6 +65,9 @@ class RetargetModule {
             console.log('adding retargetable meshes to scene for retargeting')
             this.reset_skinned_mesh_to_rest_pose(retargetable_meshes)
             this.mesh2motion_engine.get_scene().add(retargetable_meshes)
+
+            // Add skeleton helper
+            this.add_skeleton_helper(retargetable_meshes)
           }
         }, { once: true })
       } catch (error) {
@@ -73,6 +76,10 @@ class RetargetModule {
         URL.revokeObjectURL(file_url) // Clean up the URL
       }
     }
+  }
+
+  private showErrorDialog (message: string): void {
+    new ModalDialog(message, 'Error').show()
   }
 
   private reset_skinned_mesh_to_rest_pose (skinned_meshes_group: Group<Object3DEventMap>): void {
@@ -107,8 +114,13 @@ class RetargetModule {
     return true
   }
 
-  private showErrorDialog (message: string): void {
-    new ModalDialog('Could not find file in ZIP', 'Error opening file').show()
+  private add_skeleton_helper (retargetable_meshes: Group<Object3DEventMap>): void {
+    retargetable_meshes.traverse((child) => {
+      if (child.type === 'SkinnedMesh') {
+        const skinned_mesh = child as SkinnedMesh
+        this.mesh2motion_engine.regenerate_skeleton_helper(skinned_mesh.skeleton, 'Retarget Skeleton Helper')
+      }
+    })
   }
 }
 
