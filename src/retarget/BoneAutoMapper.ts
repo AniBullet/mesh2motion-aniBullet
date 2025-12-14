@@ -1,4 +1,4 @@
-import { Bone } from "three"
+import { Bone } from 'three'
 
 /**
  * Bone categories for grouping bones by anatomical area
@@ -47,8 +47,8 @@ export class BoneAutoMapper {
    * @returns Map of target bone name -> source bone name
    */
   public static auto_map_bones (source_bone_names: string[], target_bone_names: string[]): Map<string, string> {
-    const mappings = new Map<string, string>()
-    const used_source_bones = new Set<string>()
+    // mappings: final output mapping of target bone name to source bone name
+    let mappings = new Map<string, string>()
 
     // Create metadata for both source and target bones
     // console.log('=== SOURCE BONES ===')
@@ -72,19 +72,154 @@ export class BoneAutoMapper {
       BoneCategory.Unknown
     ]
     for (const category of categories) {
-      const source_bones_in_category = source_bones_meta.filter(b => b.category === category)
-      const target_bones_in_category = target_bones_meta.filter(b => b.category === category)
+      const source_bones_in_category: BoneMetadata[] = source_bones_meta.filter(b => b.category === category)
+      const target_bones_in_category: BoneMetadata[] = target_bones_meta.filter(b => b.category === category)
 
-      for (const target_bone_meta of target_bones_in_category) {
-        const best_match = this.find_best_match(target_bone_meta, source_bones_in_category, used_source_bones)
-        if (best_match !== null) {
-          mappings.set(target_bone_meta.name, best_match.name)
-          used_source_bones.add(best_match.name)
+      switch (category) {
+        case BoneCategory.Torso: {
+          const torso_mappings = this.map_torso_bones(source_bones_in_category, target_bones_in_category)
+          mappings = new Map([...mappings, ...torso_mappings])
+          break
+        }
+        case BoneCategory.Arms: {
+          const arm_mappings = this.map_arm_bones(source_bones_in_category, target_bones_in_category)
+          mappings = new Map([...mappings, ...arm_mappings])
+          break
+        }
+        case BoneCategory.Hands: {
+          const hand_mappings = this.map_hand_bones(source_bones_in_category, target_bones_in_category)
+          mappings = new Map([...mappings, ...hand_mappings])
+          break
+        }
+        case BoneCategory.Legs: {
+          const leg_mappings = this.map_leg_bones(source_bones_in_category, target_bones_in_category)
+          mappings = new Map([...mappings, ...leg_mappings])
+          break
+        }
+        case BoneCategory.Wings: {
+          const wing_mappings = this.map_wing_bones(source_bones_in_category, target_bones_in_category)
+          mappings = new Map([...mappings, ...wing_mappings])
+          break
+        }
+        case BoneCategory.Tail: {
+          const tail_mappings = this.map_tail_bones(source_bones_in_category, target_bones_in_category)
+          mappings = new Map([...mappings, ...tail_mappings])
+          break
+        }
+        case BoneCategory.Unknown: {
+          const unknown_mappings = this.map_unknown_bones(source_bones_in_category, target_bones_in_category)
+          mappings = new Map([...mappings, ...unknown_mappings])
+          break
         }
       }
     }
 
     return mappings
+  }
+
+  static map_torso_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
+    const category_mappings = new Map<string, string>()
+
+    // go through each target bone and find the best matching source bone
+    for (const target_bone_meta of target_bones) {
+      const best_match = this.find_best_match(target_bone_meta, source_bones)
+      if (best_match !== null) {
+        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
+        category_mappings.set(target_bone_meta.name, best_match.name)
+      }
+    }
+
+    return category_mappings
+  }
+
+  static map_arm_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
+    const category_mappings = new Map<string, string>()
+
+    // go through each target bone and find the best matching source bone
+    for (const target_bone_meta of target_bones) {
+      const best_match = this.find_best_match(target_bone_meta, source_bones)
+      if (best_match !== null) {
+        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
+        category_mappings.set(target_bone_meta.name, best_match.name)
+      }
+    }
+
+    return category_mappings
+  }
+
+  static map_hand_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
+    const category_mappings = new Map<string, string>()
+
+    // go through each target bone and find the best matching source bone
+    for (const target_bone_meta of target_bones) {
+      const best_match = this.find_best_match(target_bone_meta, source_bones)
+      if (best_match !== null) {
+        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
+        category_mappings.set(target_bone_meta.name, best_match.name)
+      }
+    }
+
+    return category_mappings
+  }
+
+  static map_leg_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
+    const category_mappings = new Map<string, string>()
+
+    // go through each target bone and find the best matching source bone
+    for (const target_bone_meta of target_bones) {
+      const best_match = this.find_best_match(target_bone_meta, source_bones)
+      if (best_match !== null) {
+        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
+        category_mappings.set(target_bone_meta.name, best_match.name)
+      }
+    }
+
+    return category_mappings
+  }
+
+  static map_wing_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
+    const category_mappings = new Map<string, string>()
+
+    // go through each target bone and find the best matching source bone
+    for (const target_bone_meta of target_bones) {
+      const best_match = this.find_best_match(target_bone_meta, source_bones)
+      if (best_match !== null) {
+        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
+        category_mappings.set(target_bone_meta.name, best_match.name)
+      }
+    }
+
+    return category_mappings
+  }
+
+  static map_tail_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
+    const category_mappings = new Map<string, string>()
+
+    // go through each target bone and find the best matching source bone
+    for (const target_bone_meta of target_bones) {
+      const best_match = this.find_best_match(target_bone_meta, source_bones)
+      if (best_match !== null) {
+        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
+        category_mappings.set(target_bone_meta.name, best_match.name)
+      }
+    }
+
+    return category_mappings
+  }
+
+  static map_unknown_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
+    const category_mappings = new Map<string, string>()
+
+    // go through each target bone and find the best matching source bone
+    for (const target_bone_meta of target_bones) {
+      const best_match = this.find_best_match(target_bone_meta, source_bones)
+      if (best_match !== null) {
+        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
+        category_mappings.set(target_bone_meta.name, best_match.name)
+      }
+    }
+
+    return category_mappings
   }
 
   /**
@@ -200,19 +335,20 @@ export class BoneAutoMapper {
       return BoneSide.Right
     }
 
-    // if those don't match, let's fall back to see if the last character is L or R
-    // this is common in Blender rigs (e.g., "arm_L", "leg_R")
-    const last_char = normalized.charAt(normalized.length - 1)
-    if (last_char.toLowerCase() === 'l') {
-      return BoneSide.Left
-    } else if (last_char.toLowerCase() === 'r') {
-      return BoneSide.Right
-    }
-
     // let's look to see if "right" or "left" appears anywhere in the name
     if (normalized.includes('left')) {
       return BoneSide.Left
     } else if (normalized.includes('right')) {
+      return BoneSide.Right
+    }
+
+    // Final check since this can create false/positives (shoulder will match to right)
+    //  let's fall back to see if the last character is L or R
+    // this is common in Blender rigs (e.g., "armL", "legR")
+    const last_char = normalized.charAt(normalized.length - 1)
+    if (last_char.toLowerCase() === 'l') {
+      return BoneSide.Left
+    } else if (last_char.toLowerCase() === 'r') {
       return BoneSide.Right
     }
 
@@ -223,19 +359,13 @@ export class BoneAutoMapper {
    * Find the best matching source bone (Mesh2Motion) for a given target bone (uploaded mesh)
    * @param target_bone_meta - Target bone metadata to match (uploaded mesh)
    * @param source_bones_meta - Array of source bone metadata to search (Mesh2Motion skeleton)
-   * @param used_source_bones - Set of source bone names that have already been mapped
    * @returns Best matching source bone metadata, or null if no good match found
    */
-  private static find_best_match (target_bone_meta: BoneMetadata, source_bones_meta: BoneMetadata[], used_source_bones: Set<string>): BoneMetadata | null {
+  private static find_best_match (target_bone_meta: BoneMetadata, source_bones_meta: BoneMetadata[]): BoneMetadata | null {
     let best_match: BoneMetadata | null = null
     let best_score = 0
 
     for (const source_bone_meta of source_bones_meta) {
-      // Skip if this source bone has already been used
-      if (used_source_bones.has(source_bone_meta.name)) {
-        continue
-      }
-
       const score = this.calculate_similarity(target_bone_meta.normalized_name, source_bone_meta.normalized_name)
 
       // Boost score if sides match
