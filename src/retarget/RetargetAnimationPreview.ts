@@ -1,4 +1,4 @@
-import { AnimationClip, AnimationMixer, type Scene, type SkinnedMesh, VectorKeyframeTrack, QuaternionKeyframeTrack } from 'three'
+import { AnimationClip, AnimationMixer, type Scene, type SkinnedMesh, VectorKeyframeTrack, QuaternionKeyframeTrack, AnimationAction } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 import type { StepBoneMapping } from './StepBoneMapping.ts'
@@ -70,17 +70,7 @@ export class RetargetAnimationPreview extends EventTarget {
     }
 
     // Create animation mixer for the target skeleton
-    // Try creating mixer on the first skinned mesh instead of the parent group
     this.animation_mixer = new AnimationMixer(this.target_skinned_meshes[0])
-
-    // Debug: Log the target skeleton structure
-    console.log('Target skeleton structure:')
-    this.target_skinned_meshes.forEach((mesh, index) => {
-      console.log(`  SkinnedMesh ${index}: ${mesh.name}, bones: ${mesh.skeleton.bones.length}`)
-      mesh.skeleton.bones.forEach((bone, boneIndex) => {
-        console.log(`    Bone ${boneIndex}: ${bone.name}`)
-      })
-    })
 
     // Load the first animation based on skeleton type
     await this.load_first_animation()
@@ -124,12 +114,7 @@ export class RetargetAnimationPreview extends EventTarget {
             if (gltf.animations !== null && gltf.animations !== undefined && gltf.animations.length > 0) {
               this.current_animation_clip = gltf.animations[0]
               if (this.current_animation_clip !== null) {
-                console.log('Loaded first animation:', this.current_animation_clip.name)
-                console.log('Source animation tracks:')
-                this.current_animation_clip.tracks.forEach((track, index) => {
-                  console.log(`  Track ${index}: ${track.name} (${track.values.length} values)`)
-                })
-                console.log('Total tracks:', this.current_animation_clip.tracks.length)
+                console.log('Loaded animation:', this.current_animation_clip.name)
               }
               this.update_preview_animation()
               resolve()
@@ -191,19 +176,12 @@ export class RetargetAnimationPreview extends EventTarget {
       bone_mappings
     )
 
-    // Optimize the clip
-    //this.retargeted_animation_clip.optimize()
-
     // Apply the retargeted animation to all target skinned meshes
-    this.target_skinned_meshes.forEach((skinned_mesh, index) => {
+    this.target_skinned_meshes.forEach((skinned_mesh) => {
       if (this.animation_mixer !== null && this.retargeted_animation_clip !== null) {
-        console.log(`Playing animation on SkinnedMesh ${index}: ${skinned_mesh.name}`)
-
-        const action = this.animation_mixer.clipAction(this.retargeted_animation_clip, skinned_mesh)
-        action.play()
-
-        console.log('Animation clip playing: ', this.retargeted_animation_clip)
-        console.log(`  Action playing - enabled: ${action.enabled}, paused: ${action.paused}`)
+        const action: AnimationAction = this.animation_mixer.clipAction(this.retargeted_animation_clip, skinned_mesh)
+        action.reset()
+        action.play() // should loop automatically
       }
     })
 
@@ -269,8 +247,6 @@ export class RetargetAnimationPreview extends EventTarget {
           new_tracks.push(new_track)
         }
       })
-
-      console.log('All the new tracks we created for the preview:', new_tracks)
     })
 
     // Create the retargeted animation clip
@@ -280,8 +256,7 @@ export class RetargetAnimationPreview extends EventTarget {
       new_tracks
     )
 
-    console.log('Retargeted animation clip created:', retargeted_clip)
-    console.log(`Retargeted animation: ${source_clip.name} -> ${retargeted_clip.name} (${new_tracks.length} tracks)`)
+    console.log(`Retargeted animation: ${source_clip.name} (${new_tracks.length} tracks)`)
     return retargeted_clip
   }
 
@@ -325,6 +300,14 @@ export class RetargetAnimationPreview extends EventTarget {
   public update (delta_time: number): void {
     if (this.animation_mixer !== null && this.is_preview_active) {
       this.animation_mixer.update(delta_time)
+
+      // CRITICAL: Update the skeleton and skinned meshes after animation changes the bones
+      // Why do I need this when I don't need it in the main Mesh2Motion engine?
+      this.target_skinned_meshes.forEach((skinned_mesh) => {
+        skinned_mesh.skeleton.bones.forEach(bone => {
+          bone.updateMatrixWorld(true)
+        })
+      })
     }
   }
 
