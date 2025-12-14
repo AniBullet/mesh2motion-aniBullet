@@ -1,4 +1,5 @@
 import { Bone } from 'three'
+import { BoneCategoryMapper } from './BoneCategoryMapper'
 
 /**
  * Bone categories for grouping bones by anatomical area
@@ -77,37 +78,37 @@ export class BoneAutoMapper {
 
       switch (category) {
         case BoneCategory.Torso: {
-          const torso_mappings = this.map_torso_bones(source_bones_in_category, target_bones_in_category)
+          const torso_mappings = BoneCategoryMapper.map_torso_bones(source_bones_in_category, target_bones_in_category)
           mappings = new Map([...mappings, ...torso_mappings])
           break
         }
         case BoneCategory.Arms: {
-          const arm_mappings = this.map_arm_bones(source_bones_in_category, target_bones_in_category)
+          const arm_mappings = BoneCategoryMapper.map_arm_bones(source_bones_in_category, target_bones_in_category)
           mappings = new Map([...mappings, ...arm_mappings])
           break
         }
         case BoneCategory.Hands: {
-          const hand_mappings = this.map_hand_bones(source_bones_in_category, target_bones_in_category)
+          const hand_mappings = BoneCategoryMapper.map_hand_bones(source_bones_in_category, target_bones_in_category)
           mappings = new Map([...mappings, ...hand_mappings])
           break
         }
         case BoneCategory.Legs: {
-          const leg_mappings = this.map_leg_bones(source_bones_in_category, target_bones_in_category)
+          const leg_mappings = BoneCategoryMapper.map_leg_bones(source_bones_in_category, target_bones_in_category)
           mappings = new Map([...mappings, ...leg_mappings])
           break
         }
         case BoneCategory.Wings: {
-          const wing_mappings = this.map_wing_bones(source_bones_in_category, target_bones_in_category)
+          const wing_mappings = BoneCategoryMapper.map_wing_bones(source_bones_in_category, target_bones_in_category)
           mappings = new Map([...mappings, ...wing_mappings])
           break
         }
         case BoneCategory.Tail: {
-          const tail_mappings = this.map_tail_bones(source_bones_in_category, target_bones_in_category)
+          const tail_mappings = BoneCategoryMapper.map_tail_bones(source_bones_in_category, target_bones_in_category)
           mappings = new Map([...mappings, ...tail_mappings])
           break
         }
         case BoneCategory.Unknown: {
-          const unknown_mappings = this.map_unknown_bones(source_bones_in_category, target_bones_in_category)
+          const unknown_mappings = BoneCategoryMapper.map_unknown_bones(source_bones_in_category, target_bones_in_category)
           mappings = new Map([...mappings, ...unknown_mappings])
           break
         }
@@ -115,111 +116,6 @@ export class BoneAutoMapper {
     }
 
     return mappings
-  }
-
-  static map_torso_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
-    const category_mappings = new Map<string, string>()
-
-    // go through each target bone and find the best matching source bone
-    for (const target_bone_meta of target_bones) {
-      const best_match = this.find_best_match(target_bone_meta, source_bones)
-      if (best_match !== null) {
-        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
-        category_mappings.set(target_bone_meta.name, best_match.name)
-      }
-    }
-
-    return category_mappings
-  }
-
-  static map_arm_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
-    const category_mappings = new Map<string, string>()
-
-    // go through each target bone and find the best matching source bone
-    for (const target_bone_meta of target_bones) {
-      const best_match = this.find_best_match(target_bone_meta, source_bones)
-      if (best_match !== null) {
-        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
-        category_mappings.set(target_bone_meta.name, best_match.name)
-      }
-    }
-
-    return category_mappings
-  }
-
-  static map_hand_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
-    const category_mappings = new Map<string, string>()
-
-    // go through each target bone and find the best matching source bone
-    for (const target_bone_meta of target_bones) {
-      const best_match = this.find_best_match(target_bone_meta, source_bones)
-      if (best_match !== null) {
-        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
-        category_mappings.set(target_bone_meta.name, best_match.name)
-      }
-    }
-
-    return category_mappings
-  }
-
-  static map_leg_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
-    const category_mappings = new Map<string, string>()
-
-    // go through each target bone and find the best matching source bone
-    for (const target_bone_meta of target_bones) {
-      const best_match = this.find_best_match(target_bone_meta, source_bones)
-      if (best_match !== null) {
-        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
-        category_mappings.set(target_bone_meta.name, best_match.name)
-      }
-    }
-
-    return category_mappings
-  }
-
-  static map_wing_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
-    const category_mappings = new Map<string, string>()
-
-    // go through each target bone and find the best matching source bone
-    for (const target_bone_meta of target_bones) {
-      const best_match = this.find_best_match(target_bone_meta, source_bones)
-      if (best_match !== null) {
-        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
-        category_mappings.set(target_bone_meta.name, best_match.name)
-      }
-    }
-
-    return category_mappings
-  }
-
-  static map_tail_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
-    const category_mappings = new Map<string, string>()
-
-    // go through each target bone and find the best matching source bone
-    for (const target_bone_meta of target_bones) {
-      const best_match = this.find_best_match(target_bone_meta, source_bones)
-      if (best_match !== null) {
-        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
-        category_mappings.set(target_bone_meta.name, best_match.name)
-      }
-    }
-
-    return category_mappings
-  }
-
-  static map_unknown_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
-    const category_mappings = new Map<string, string>()
-
-    // go through each target bone and find the best matching source bone
-    for (const target_bone_meta of target_bones) {
-      const best_match = this.find_best_match(target_bone_meta, source_bones)
-      if (best_match !== null) {
-        console.log(`Mapping target bone "${target_bone_meta.name}" to source bone "${best_match.name}"`)
-        category_mappings.set(target_bone_meta.name, best_match.name)
-      }
-    }
-
-    return category_mappings
   }
 
   /**
@@ -356,38 +252,6 @@ export class BoneAutoMapper {
   }
 
   /**
-   * Find the best matching source bone (Mesh2Motion) for a given target bone (uploaded mesh)
-   * @param target_bone_meta - Target bone metadata to match (uploaded mesh)
-   * @param source_bones_meta - Array of source bone metadata to search (Mesh2Motion skeleton)
-   * @returns Best matching source bone metadata, or null if no good match found
-   */
-  private static find_best_match (target_bone_meta: BoneMetadata, source_bones_meta: BoneMetadata[]): BoneMetadata | null {
-    let best_match: BoneMetadata | null = null
-    let best_score = 0
-
-    for (const source_bone_meta of source_bones_meta) {
-      const score = this.calculate_similarity(target_bone_meta.normalized_name, source_bone_meta.normalized_name)
-
-      // Boost score if sides match
-      let adjusted_score = score
-      if (target_bone_meta.side === source_bone_meta.side) {
-        adjusted_score *= 1.2 // 20% bonus for matching sides
-      } else if (target_bone_meta.side !== BoneSide.Center && source_bone_meta.side !== BoneSide.Center) {
-        // Penalize if sides don't match (unless one is center)
-        adjusted_score *= 0.7
-      }
-
-      // Require a minimum threshold for matching
-      if (adjusted_score > best_score && score >= 0.6) {
-        best_score = adjusted_score
-        best_match = source_bone_meta
-      }
-    }
-
-    return best_match
-  }
-
-  /**
    * Normalize bone names for comparison by:
    * - Converting to lowercase
    * - Removing common prefixes/suffixes
@@ -448,26 +312,5 @@ export class BoneAutoMapper {
     normalized = normalized.replace(/^_|_$/g, '')
 
     return normalized
-  }
-
-  /**
-   * Calculate similarity score between two normalized bone names
-   * Uses a combination of exact match, contains
-   * returns: similarity score between 0 and 1. 1 is a perfect match.
-   */
-  private static calculate_similarity (name1: string, name2: string): number {
-    // Exact match
-    if (name1 === name2) {
-      return 1.0
-    }
-
-    // One contains the other
-    if (name1.includes(name2) || name2.includes(name1)) {
-      const longer = Math.max(name1.length, name2.length)
-      const shorter = Math.min(name1.length, name2.length)
-      return 0.8 + (shorter / longer) * 0.2
-    }
-
-    return 0.0
   }
 }
