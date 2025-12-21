@@ -1,5 +1,15 @@
 <img src="./mesh2motion.svg" alt="Mesh2Motion Logo" width="400"/>
 
+<table>
+  <tr>
+    <td><h4>Discord<h4></td>
+    <td><a href="https://discord.com/channels/1408921718231273613/1452129660791165001">Join the Discord channel</a></td>
+    <td>
+      <img src="https://img.shields.io/discord/1408921718231273613?label=People&color=purple" alt="Discord">
+    </td>
+  </tr>
+</table>
+
 Import a 3D Model and automatically assign and export animations with Mesh2Motion. This is kind of similar to a web application like Mixamo, but I would like it to be more flexible so it can support other model and skeleton types. Hopefully the open source nature means it can be expanded on and evolve more than than the closed tools have. 
 
 The marketing site that explains features and release notes: https://mesh2motion.org/
