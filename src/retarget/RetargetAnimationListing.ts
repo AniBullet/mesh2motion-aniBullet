@@ -17,14 +17,14 @@ export class RetargetAnimationListing extends EventTarget {
   private readonly animation_player: AnimationPlayer
   private readonly animation_loader: AnimationLoader = new AnimationLoader()
   private readonly step_bone_mapping: StepBoneMapping
-  
+
   private animation_clips_loaded: TransformedAnimationClipPair[] = []
   private animation_mixer: AnimationMixer = new AnimationMixer(new Object3D())
   private skinned_meshes_to_animate: SkinnedMesh[] = []
   private skeleton_type: SkeletonType = SkeletonType.Human
-  
+
   private _added_event_listeners: boolean = false
-  
+
   public animation_search: AnimationSearch | null = null
 
   private is_animations_active: boolean = false
@@ -62,6 +62,9 @@ export class RetargetAnimationListing extends EventTarget {
     return this.animation_clips_loaded.map(clip => clip.display_animation_clip)
   }
 
+  /**
+   * This will be called any time we enter the retarget animation listing step
+   */
   public start_preview (): void {
     this.is_animations_active = true
   }
@@ -92,6 +95,25 @@ export class RetargetAnimationListing extends EventTarget {
       })
   }
 
+  /**
+   * Enable the export button only if there are animations selected
+   */
+  private update_export_button_enabled_state (): void {
+    // if there are no animations selected disable the download button
+    const export_button = document.getElementById('export-retargeting-button') as HTMLButtonElement | null
+    const animations_selected_count: number = this.animation_search?.get_selected_animation_indices().length ?? 0
+
+    if (export_button !== null) {
+      export_button.disabled = animations_selected_count === 0
+    }
+
+    // update the count inside the export/download button
+    const count_element = document.getElementById('animation-selection-count')
+    if (count_element !== null) {
+      count_element.textContent = animations_selected_count.toString()
+    }
+  }
+
   private on_all_animations_loaded (): void {
     // Sort alphabetically
     this.animation_clips_loaded.sort((a: TransformedAnimationClipPair, b: TransformedAnimationClipPair) => {
@@ -107,10 +129,7 @@ export class RetargetAnimationListing extends EventTarget {
 
     // Update animation selection count when selections change
     this.animation_search?.addEventListener('export-options-changed', () => {
-      const count_element = document.getElementById('animation-selection-count')
-      if (count_element !== null) {
-        count_element.textContent = this.animation_search?.get_selected_animation_indices().length.toString() ?? '0'
-      }
+      this.update_export_button_enabled_state()
     })
 
     // Update animation listing count display
@@ -118,6 +137,10 @@ export class RetargetAnimationListing extends EventTarget {
     if (listing_count_element !== null) {
       listing_count_element.textContent = this.animation_clips_loaded.length.toString()
     }
+
+    // the export button enabled state relies on the animation search being initialized
+    // since we created a new one above, we need to recalculate this method
+    this.update_export_button_enabled_state()
 
     console.log(`Loaded ${this.animation_clips_loaded.length} animations for retargeting`)
   }
@@ -130,7 +153,7 @@ export class RetargetAnimationListing extends EventTarget {
       this.theme_manager,
       this.skeleton_type
     )
-    
+
     this.animation_search.initialize_animations(animation_clips)
 
     // Add click event listeners to animation items for playback
@@ -139,7 +162,7 @@ export class RetargetAnimationListing extends EventTarget {
       animations_container.addEventListener('click', (event) => {
         const target = event.target as HTMLElement
         const button = target.closest('.play')
-        
+
         if (button !== null) {
           const index = parseInt((button as HTMLButtonElement).dataset.index ?? '-1')
           if (index >= 0) {
@@ -197,7 +220,7 @@ export class RetargetAnimationListing extends EventTarget {
   private add_event_listeners (): void {
     // Add any retarget-specific event listeners here
     // For now, keeping it minimal
-     this.setup_animation_loop()
+    this.setup_animation_loop()
   }
 
   public get_animation_player (): AnimationPlayer {
