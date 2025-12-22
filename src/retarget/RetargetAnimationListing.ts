@@ -1,10 +1,12 @@
 import { AnimationPlayer } from '../lib/processes/animations-listing/AnimationPlayer.ts'
 import { AnimationSearch } from '../lib/processes/animations-listing/AnimationSearch.ts'
 import { AnimationLoader } from '../lib/processes/animations-listing/AnimationLoader.ts'
-import { type AnimationClip, AnimationMixer, type SkinnedMesh, Object3D, Object3DEventMap, Group } from 'three'
+import { type AnimationClip, AnimationMixer, type SkinnedMesh, Object3D, type Object3DEventMap, type Group } from 'three'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
-import { ThemeManager } from '../lib/ThemeManager.ts'
+import type { ThemeManager } from '../lib/ThemeManager.ts'
 import { type TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair.ts'
+import { AnimationRetargetService } from './AnimationRetargetService.ts'
+import { type StepBoneMapping } from './steps/StepBoneMapping.ts'
 
 /**
  * RetargetAnimationListing - Handles animation listing and playback specifically for retargeting workflow
@@ -14,6 +16,7 @@ export class RetargetAnimationListing extends EventTarget {
   private readonly theme_manager: ThemeManager
   private readonly animation_player: AnimationPlayer
   private readonly animation_loader: AnimationLoader = new AnimationLoader()
+  private readonly step_bone_mapping: StepBoneMapping
   
   private animation_clips_loaded: TransformedAnimationClipPair[] = []
   private animation_mixer: AnimationMixer = new AnimationMixer(new Object3D())
@@ -24,10 +27,11 @@ export class RetargetAnimationListing extends EventTarget {
   
   public animation_search: AnimationSearch | null = null
 
-  constructor (theme_manager: ThemeManager) {
+  constructor (theme_manager: ThemeManager, step_bone_mapping: StepBoneMapping) {
     super()
     this.theme_manager = theme_manager
     this.animation_player = new AnimationPlayer()
+    this.step_bone_mapping = step_bone_mapping
   }
 
   public begin (skeleton_type: SkeletonType): void {
@@ -129,10 +133,10 @@ export class RetargetAnimationListing extends EventTarget {
     if (animations_container !== null) {
       animations_container.addEventListener('click', (event) => {
         const target = event.target as HTMLElement
-        const button = target.closest('.play') as HTMLButtonElement
+        const button = target.closest('.play')
         
         if (button !== null) {
-          const index = parseInt(button.dataset.index ?? '-1')
+          const index = parseInt((button as HTMLButtonElement).dataset.index ?? '-1')
           if (index >= 0) {
             this.play_animation(index)
           }
@@ -153,18 +157,36 @@ export class RetargetAnimationListing extends EventTarget {
     // Stop all current actions
     this.animation_mixer.stopAllAction()
 
-    // Create new actions for each skinned mesh
+    // Get bone mappings from the bone mapping step
+    const bone_mappings = this.step_bone_mapping.get_bone_mapping()
+
+    if (bone_mappings.size === 0) {
+      console.warn('No bone mappings available. Cannot play retargeted animation.')
+      return
+    }
+
+    // Retarget the animation using the shared service
+    const retargeted_clip = AnimationRetargetService.retarget_animation_clip(
+      display_clip,
+      bone_mappings,
+      this.step_bone_mapping.get_target_mapping_template(),
+      this.step_bone_mapping.get_source_armature(),
+      this.step_bone_mapping.get_target_skeleton_data(),
+      this.skinned_meshes_to_animate
+    )
+
+    // Create new actions for each skinned mesh with the retargeted animation
     const actions = this.skinned_meshes_to_animate.map((mesh) => {
-      const action = this.animation_mixer.clipAction(display_clip, mesh)
+      const action = this.animation_mixer.clipAction(retargeted_clip, mesh)
       action.reset()
       action.play()
       return action
     })
 
     // Update the animation player UI
-    this.animation_player.set_animation(display_clip, actions)
+    this.animation_player.set_animation(retargeted_clip, actions)
 
-    console.log('Playing animation:', display_clip.name)
+    console.log('Playing retargeted animation:', retargeted_clip.name)
   }
 
   private add_event_listeners (): void {

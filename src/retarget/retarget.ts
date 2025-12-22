@@ -100,7 +100,10 @@ class RetargetModule {
         }
 
         // load the animation listing step
-        this.animation_listing_step = new RetargetAnimationListing(this.mesh2motion_engine.get_theme_manager())
+        this.animation_listing_step = new RetargetAnimationListing(
+          this.mesh2motion_engine.get_theme_manager(),
+          this.step_bone_mapping
+        )
         this.animation_listing_step.begin(this.step_load_source_skeleton.get_skeleton_type())
         this.animation_listing_step.load_and_apply_default_animation_to_skinned_mesh(retargetable_meshes)
       }
@@ -129,6 +132,11 @@ class RetargetModule {
 
       // Update animation preview
       this.retarget_animation_preview.update(delta_time)
+
+      // Update animation listing if it exists
+      if (this.animation_listing_step !== null) {
+        this.animation_listing_step.frame_change(delta_time)
+      }
     }
 
     animate()
