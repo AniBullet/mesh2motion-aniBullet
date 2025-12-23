@@ -12,14 +12,16 @@ export class StepExportRetargetedAnimations extends EventTarget {
   private source_armature: Group | null = null
   private target_skeleton_data: Scene | null = null
   private target_skinned_meshes: SkinnedMesh[] = []
+  private target_rig_scene: Scene | null = null
 
-  public setup_retargeting (meshes: SkinnedMesh[], bone_mapping: Map<string, string>,
+  public setup_retargeting (target_rig_scene: Scene, meshes: SkinnedMesh[], bone_mapping: Map<string, string>,
     mapping_type: TargetBoneMappingType, armature: Group, skeleton_data: Scene | null): void {
     this.bone_mapping = bone_mapping
     this.target_mapping_type = mapping_type
     this.source_armature = armature
     this.target_skeleton_data = skeleton_data
     this.target_skinned_meshes = meshes
+    this.target_rig_scene = target_rig_scene
   }
 
   public set_animation_clips_to_export (all_animations_clips: AnimationClip[], animation_checkboxes: number[]): void {
@@ -37,6 +39,11 @@ export class StepExportRetargetedAnimations extends EventTarget {
       return
     }
 
+    if (this.target_rig_scene == null) {
+      console.log('ERROR: target rig scene is null, cannot export')
+      return
+    }
+
     // Retarget all animation clips before export
     let retargeted_clips: AnimationClip[] = []
     retargeted_clips = this.animation_clips_to_export.map((clip) =>
@@ -51,35 +58,9 @@ export class StepExportRetargetedAnimations extends EventTarget {
     )
     console.log('Retargeted animation clips:', retargeted_clips)
 
-
-    const export_scene = new Scene()
-    // When exporting to a file, we need to temporarily move the skinned mesh to a new scene
-    // skinned meshes can only be part of one scene at a time, so we must move it back to
-    // its original parent after exporting
-    const original_parents = new Map<SkinnedMesh, Object3D | null>()
-
-    this.target_skinned_meshes.forEach((final_skinned_mesh) => {
-      // Save the original parent
-      original_parents.set(final_skinned_mesh, final_skinned_mesh.parent)
-      export_scene.add(final_skinned_mesh)
-    })
-
-    console.log('Retarget: trying to export the following scene as a GLB ', this.target_skinned_meshes)
-    console.log('Retarget: animations to export', retargeted_clips)
-
-    this.export_glb(export_scene, retargeted_clips, filename)
+    this.export_glb(this.target_rig_scene, retargeted_clips, filename)
       .then(() => {
-        // Move the skinned meshes back to their original parents
-        this.target_skinned_meshes.forEach((final_skinned_mesh) => {
-          const original_par = original_parents.get(final_skinned_mesh)
-          if (original_par != null) {
-            original_par.add(final_skinned_mesh)
-          } else {
-            // If there was no original parent, remove it from the scene
-            export_scene.remove(final_skinned_mesh)
-            console.log('ERROR: No original parent found for skinned mesh when exporting and re-parenting to original scene')
-          }
-        })
+        console.log('Exported GLB successfully')
       })
       .catch((error) => { console.log('Error exporting GLB:', error) })
   }
