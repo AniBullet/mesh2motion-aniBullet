@@ -49,6 +49,13 @@ export default class Quat extends Array {
   // #endregion
 
   // #region GETTERS
+
+  // typesafe aliases for components
+  get x (): number { return this[0] }
+  get y (): number { return this[1] }
+  get z (): number { return this[2] }
+  get w (): number { return this[3] }
+
   clone (): Quat { return new Quat(this) }
   // #endregion
 

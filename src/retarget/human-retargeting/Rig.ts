@@ -12,14 +12,12 @@ import type * as THREE from 'three'
 export class Rig {
   public readonly skel: THREE.Skeleton
   public readonly tpose: Pose
-  public readonly chains: Record<string, RigItem[]>
-  public scalar: number
+  public readonly chains: Record<string, RigItem[]> = {}
+  public scalar: number = 1
 
   constructor (skel: THREE.Skeleton) {
     this.skel = skel
-    this.chains = {}
     this.tpose = new Pose(skel)
-    this.scalar = 1
     // this.tpose.debug();
   }
 

@@ -68,6 +68,11 @@ export default class Vec3 extends Array {
     return this[0] ** 2 + this[1] ** 2 + this[2] ** 2
   }
 
+  // type safe getters
+  get x (): number { return this[0] }
+  get y (): number { return this[1] }
+  get z (): number { return this[2] }
+
   clone (): Vec3 {
     return new Vec3(this)
   }
@@ -129,18 +134,38 @@ export default class Vec3 extends Array {
     return this
   }
 
-  fromQuat (q: Quat, v = new Vec3(0, 0, 1)): this {
-    const qx = q[0]; const qy = q[1]; const qz = q[2]; const qw = q[3]
-    const vx = v[0]; const vy = v[1]; const vz = v[2]
-    const x1 = qy * vz - qz * vy
-    const y1 = qz * vx - qx * vz
-    const z1 = qx * vy - qy * vx
-    const x2 = qw * x1 + qy * z1 - qz * y1
-    const y2 = qw * y1 + qz * x1 - qx * z1
-    const z2 = qw * z1 + qx * y1 - qy * x1
-    this[0] = vx + 2 * x2
-    this[1] = vy + 2 * y2
-    this[2] = vz + 2 * z2
+  /**
+   * Modifies existing vector from a quaternion rotation
+   * @param quat  Quaternion
+   * @param vec Vector3
+   * @returns Vec3 object for chaining. It also mutates the original vector that calls this method
+   */
+  fromQuat (quat: Quat, vec = new Vec3(0, 0, 1)): this {
+    // extract quaternion values
+    const qx = quat[0]
+    const qy = quat[1]
+    const qz = quat[2]
+    const qw = quat[3]
+
+    // extract vector3 values
+    const vx = vec[0]
+    const vy = vec[1]
+    const vz = vec[2]
+
+    // calculate the cross product and quaternion-vector multiplication needed for the rotation.
+    const x1 = (qy * vz) - (qz * vy)
+    const y1 = (qz * vx) - (qx * vz)
+    const z1 = (qx * vy) - (qy * vx)
+
+    // second cross product
+    const x2 = (qw * x1) + (qy * z1) - (qz * y1)
+    const y2 = (qw * y1) + (qz * x1) - (qx * z1)
+    const z2 = (qw * z1) + (qx * y1) - (qy * x1)
+
+    // apply mutates vec3 that calls this method
+    this[0] = vx + (2 * x2)
+    this[1] = vy + (2 * y2)
+    this[2] = vz + (2 * z2)
     return this
   }
 

@@ -183,32 +183,39 @@ export class Pose {
     return this
   }
 
-  getWorld (id: number, out = new Transform()): Transform {
-    let joint: Joint | null = this.getJoint(id)
+  /**
+   * Get the world transform of a joint by its index
+   * @param id joint index
+   * @param out optional transform to store result
+   * @returns world transform of joint
+   */
+  getWorld (joint_idx: number, out_transform = new Transform()): Transform {
+    let joint: Joint | null = this.getJoint(joint_idx)
 
     if (joint === null) {
-      if (id === -1) {
-        out.fromMul(this.rootOffset, this.poseOffset)
+      if (joint_idx === -1) {
+        out_transform.fromMul(this.rootOffset, this.poseOffset)
       } else {
-        console.error('Pose.getWorld - joint not found', id)
+        console.error('Pose.getWorld - joint not found', joint_idx)
       }
 
-      return out
+      return out_transform
     }
 
     // Work up the heirarchy till the root bone
-    out.copy(joint.local)
+    out_transform.copy(joint.local)
     while (joint.pindex !== -1) {
       joint = this.joints[joint.pindex]
-      out.pmul(joint.local)
+      out_transform.pmul(joint.local)
     }
 
     // Add offset
-    out.pmul(this.poseOffset)
+    out_transform.pmul(this.poseOffset)
       .pmul(this.rootOffset)
 
-    return out
+    return out_transform
   }
+
   // #endregion
 
   // #region DEBUGGING
