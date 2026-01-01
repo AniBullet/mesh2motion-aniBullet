@@ -5,6 +5,7 @@ import { StepLoadTargetModel } from './steps/StepLoadTargetModel.ts'
 import { StepBoneMapping } from './steps/StepBoneMapping.ts'
 import { RetargetAnimationPreview } from './RetargetAnimationPreview.ts'
 import { RetargetAnimationListing } from './RetargetAnimationListing.ts'
+import { AnimationRetargetService } from './AnimationRetargetService'
 
 class RetargetModule {
   private readonly mesh2motion_engine: Mesh2MotionEngine
@@ -83,8 +84,8 @@ class RetargetModule {
     this.step_load_source_skeleton.addEventListener('skeleton-loaded', () => {
       const source_armature = this.step_load_source_skeleton.get_loaded_source_armature()
       const skeleton_type = this.step_load_source_skeleton.get_skeleton_type()
-
-      this.step_bone_mapping.set_source_skeleton_data(source_armature, skeleton_type)
+      AnimationRetargetService.getInstance().set_skeleton_type(skeleton_type)
+      this.step_bone_mapping.set_source_skeleton_data(source_armature)
     })
 
     // Listen for target model (user-uploaded) loaded
@@ -118,7 +119,7 @@ class RetargetModule {
         this.mesh2motion_engine.get_theme_manager(),
         this.step_bone_mapping
       )
-      this.animation_listing_step.begin(this.step_load_source_skeleton.get_skeleton_type())
+      this.animation_listing_step.begin()
       this.mesh2motion_engine.show_animation_player(true)
 
       const retargetable_meshes: Scene | null = this.step_load_target_model.get_retargetable_meshes()

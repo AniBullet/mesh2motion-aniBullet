@@ -2,7 +2,7 @@ import { AnimationPlayer } from '../lib/processes/animations-listing/AnimationPl
 import { AnimationSearch } from '../lib/processes/animations-listing/AnimationSearch.ts'
 import { AnimationLoader } from '../lib/processes/animations-listing/AnimationLoader.ts'
 import { type AnimationClip, AnimationMixer, type SkinnedMesh, Object3D, type Scene, type AnimationAction } from 'three'
-import { SkeletonType } from '../lib/enums/SkeletonType.ts'
+import type { SkeletonType } from '../lib/enums/SkeletonType.ts'
 import type { ThemeManager } from '../lib/ThemeManager.ts'
 import { type TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair.ts'
 import { AnimationRetargetService } from './AnimationRetargetService.ts'
@@ -24,8 +24,6 @@ export class RetargetAnimationListing extends EventTarget {
 
   private skinned_meshes_to_animate: SkinnedMesh[] = []
 
-  private skeleton_type: SkeletonType = SkeletonType.Human
-
   private _added_event_listeners: boolean = false
 
   public animation_search: AnimationSearch | null = null
@@ -42,9 +40,7 @@ export class RetargetAnimationListing extends EventTarget {
     this.step_bone_mapping = step_bone_mapping
   }
 
-  public begin (skeleton_type: SkeletonType): void {
-    this.skeleton_type = skeleton_type
-
+  public begin (): void {
     this.reset_step_data()
 
     if (!this._added_event_listeners) {
@@ -99,7 +95,9 @@ export class RetargetAnimationListing extends EventTarget {
     this.animation_clips_loaded = []
     this.animation_mixer = new AnimationMixer(new Object3D())
 
-    this.animation_loader.load_animations(this.skeleton_type)
+    // this animation loader comes from the Mesh2Motion engine, so still
+    // pass in the skeleton type this way
+    this.animation_loader.load_animations(AnimationRetargetService.getInstance().get_skeleton_type())
       .then((loaded_clips: TransformedAnimationClipPair[]) => {
         this.animation_clips_loaded = loaded_clips
         this.on_all_animations_loaded()
@@ -165,7 +163,7 @@ export class RetargetAnimationListing extends EventTarget {
       'animation-filter',
       'animations-items',
       this.theme_manager,
-      this.skeleton_type
+      AnimationRetargetService.getInstance().get_skeleton_type()
     )
 
     this.animation_search.initialize_animations(animation_clips)
@@ -246,15 +244,19 @@ export class RetargetAnimationListing extends EventTarget {
       )
 
       // configure the export out step with retargeting info
-      this.step_export_retargeted_animations.setup_retargeting(
-        this.target_rig_scene,
-        this.skinned_meshes_to_animate,
-        this.step_bone_mapping.get_bone_mapping(),
-        this.step_bone_mapping.get_target_mapping_template(),
-        this.step_bone_mapping.get_source_armature(),
-        this.step_bone_mapping.get_target_skeleton_data()
-      )
-      this.step_export_retargeted_animations.export('retargeted_animations')
+      if (this.target_rig_scene !== null) {
+        this.step_export_retargeted_animations.setup_retargeting(
+          this.target_rig_scene,
+          this.skinned_meshes_to_animate,
+          this.step_bone_mapping.get_bone_mapping(),
+          this.step_bone_mapping.get_target_mapping_template(),
+          this.step_bone_mapping.get_source_armature(),
+          this.step_bone_mapping.get_target_skeleton_data()
+        )
+        this.step_export_retargeted_animations.export('retargeted_animations')
+      } else {
+        console.error('Target rig scene is null, cannot export retargeted animations.')
+      }
     })
   }
 

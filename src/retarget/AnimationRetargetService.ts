@@ -1,6 +1,10 @@
-import { AnimationClip, Euler, type Object3D, Quaternion, QuaternionKeyframeTrack, Vector3, VectorKeyframeTrack, type Scene, type Group, type SkinnedMesh } from 'three'
+import {
+  AnimationClip, Euler, type Object3D, Quaternion, QuaternionKeyframeTrack, Vector3,
+  VectorKeyframeTrack, type Scene, type Group, type SkinnedMesh
+} from 'three'
 import { RetargetUtils } from './RetargetUtils.ts'
 import { TargetBoneMappingType } from './steps/StepBoneMapping.ts'
+import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 
 /**
  * Parsed animation track name containing bone name and property type
@@ -9,11 +13,23 @@ export interface TrackNameParts {
   bone_name: string
   property: string
 }
-
 // AnimationRetargetService - Shared service for retargeting animations from one skeleton to another
 // Used by both RetargetAnimationPreview and RetargetAnimationListing
 export class AnimationRetargetService {
   private static instance: AnimationRetargetService | null = null
+
+  /**
+   * Get/set for the skeleton type. This will be the source of truth
+   * for other classes to grab this data
+   */
+  private skeleton_type: SkeletonType = SkeletonType.None
+  public set_skeleton_type (type: SkeletonType): void {
+    this.skeleton_type = type
+  }
+
+  public get_skeleton_type (): SkeletonType {
+    return this.skeleton_type
+  }
 
   private constructor () {}
 

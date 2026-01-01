@@ -113,7 +113,7 @@ export class RetargetAnimationPreview extends EventTarget {
    */
   private async load_first_animation (): Promise<void> {
     // get location of animation file to load that has preview animations
-    const source_skeleton_type = this.step_bone_mapping.get_source_skeleton_type()
+    const source_skeleton_type = AnimationRetargetService.getInstance().get_skeleton_type()
     const animation_file_path = RetargetUtils.get_animation_file_path(source_skeleton_type)
 
     if (animation_file_path === null) {
@@ -124,7 +124,8 @@ export class RetargetAnimationPreview extends EventTarget {
     // if we are coming back to this step and already loaded a default animation, skip reloading
     // and just do the playing
     if (this.current_animation_clip !== null) {
-    
+      this.play_default_animation()
+      return
     }
 
     try {
