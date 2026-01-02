@@ -124,7 +124,7 @@ export class MixamoMapper {
   static map_mixamo_bones (source_bones: BoneMetadata[], target_bones: BoneMetadata[]): Map<string, string> {
     const mappings = new Map<string, string>()
 
-    console.log('=== MIXAMO DIRECT MAPPING ===')
+    // console.log('=== MIXAMO DIRECT MAPPING ===')
 
     // For each source bone (Mesh2Motion), find matching target bone (Mixamo)
     for (const source_bone of source_bones) {
@@ -136,7 +136,7 @@ export class MixamoMapper {
 
         if (target_bone) {
           mappings.set(target_bone.name, source_bone.name)
-          console.log(`Mapped: ${target_bone.name} -> ${source_bone.name}`)
+          // console.log(`Mapped: ${target_bone.name} -> ${source_bone.name}`)
         }
       }
     }

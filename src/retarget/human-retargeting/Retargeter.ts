@@ -59,7 +59,7 @@ export class Retargeter {
 
   // Apply SwingTwist to each joint of a chain, 1 to 1 mappings
   // k = chain key like 'pelvis', 'armL', etc
-  applyChain (k: string): void {
+  public applyChain (k: string): void {
     const src: RigItem[] = this.srcRig.chains[k]
     const tar: RigItem[] = this.tarRig.chains[k]
     if (src === null || tar === null) {
@@ -148,7 +148,7 @@ export class Retargeter {
 
   // Interp start & end SwingTwist vectors over a chain
   // k = chain key like 'spine', etc
-  applyEndInterp (k: string): void {
+  public applyEndInterp (k: string): void {
     if (this.srcRig === null || this.tarRig === null || this.pose === null) {
       console.warn('Retargeter: Missing srcRig, tarRig, or pose.')
       return
@@ -207,7 +207,9 @@ export class Retargeter {
   }
 
   // Compute offset translation & scale it to fit better on target
-  applyScaledTranslation (k: string): void {
+  // this will correspond to the hip/root movement that drives root motion
+  // this will only be applied to one chain, usually the 'pelvis' chain
+  public applyScaledTranslation (k: string): void {
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // get chain root items
     const src: RigItem = this.srcRig.chains[k][0]
