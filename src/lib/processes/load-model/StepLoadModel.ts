@@ -9,6 +9,7 @@ import { MathUtils } from 'three/src/math/MathUtils.js'
 import { BufferGeometry, Group, MeshPhongMaterial, Object3DEventMap, type Material, type Object3D } from 'three'
 import { ModalDialog } from '../../ModalDialog.ts'
 import { ModelCleanupUtility } from './ModelCleanupUtility.ts'
+import { PlatformUtils } from '../../PlatformUtils.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
 export class StepLoadModel extends EventTarget {
@@ -149,6 +150,7 @@ export class StepLoadModel extends EventTarget {
 
   public add_event_listeners (): void {
     if (this.ui.dom_upload_model_button !== null) {
+      // handle file upload
       this.ui.dom_upload_model_button.addEventListener('change', (event: Event) => {
         const file = event.target.files[0]
         const file_extension: string = this.get_file_extension(file.name)
@@ -160,6 +162,12 @@ export class StepLoadModel extends EventTarget {
           this.load_model_file(reader.result, file_extension)
         }
       })
+
+      // iOS has a weird issue with accepted file extensions, so we need to just
+      // accept everything for that platform
+      if (PlatformUtils.isIOS()) {
+        this.ui.dom_upload_model_button.setAttribute('accept', '*/*')
+      }
     }
 
     if (this.ui.dom_load_model_debug_checkbox !== null) {
