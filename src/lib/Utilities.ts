@@ -208,16 +208,7 @@ export class Utility {
   }
 
   static calculate_bone_base_name (bone_name: string): string {
-    // human has different bone naming convention than 4 legged animals
-    if (bone_name.includes('DEF-')) {
-      return bone_name
-        .replace('DEF-', '')
-        .replace(/(R|L)/g, '')
-    }
-
-    // animal rig
-    return bone_name
-      .replace(/(Right|Right_|R_|_Right|_R|Left|Left_|_Left|L_|_R|_L)/g, '')
+    return bone_name.toLowerCase().replace(/(right|right_|r_|_right|_r|left|left_|_left|l_|_r|_l)/g, '')
   }
 
   // Find the closest bone for raycaster using screen-space distance to account for camera zoom
