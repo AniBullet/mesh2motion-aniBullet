@@ -297,14 +297,6 @@ export class StepBoneMapping extends EventTarget {
         this.update_target_bones_list()
         this.update_clear_button_visibility()
 
-        // Dispatch event to notify of mapping change
-        this.dispatchEvent(new CustomEvent('bone-mapping-updated', {
-          detail: {
-            target_bone: target_bone_name,
-            source_bone: source_bone_name
-          }
-        }))
-
         // Dispatch event to notify about mapping state change
         this.dispatchEvent(new CustomEvent('bone-mappings-changed'))
       }

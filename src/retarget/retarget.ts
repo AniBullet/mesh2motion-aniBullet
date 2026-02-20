@@ -18,6 +18,7 @@ class RetargetModule {
   private animation_listing_step: RetargetAnimationListing | null = null
 
   private back_to_bone_map_button: HTMLButtonElement | null = null
+  private continue_to_listing_button: HTMLButtonElement | null = null
 
   constructor () {
     // Set up camera position similar to marketing bootstrap
@@ -58,7 +59,9 @@ class RetargetModule {
     this.back_to_bone_map_button = document.getElementById('back_to_bone_map_button') as HTMLButtonElement
     const bone_mapping_step = document.getElementById('bone-mapping-step')
     const animation_export_options = document.getElementById('skinned-step-animation-export-options')
-    const continue_button = document.getElementById('continue-to-listing-button') as HTMLButtonElement
+    this.continue_to_listing_button = document.getElementById('continue-to-listing-button') as HTMLButtonElement
+
+    this.update_continue_button_state()
 
     this.back_to_bone_map_button.onclick = () => {
       // Hide the skinned-step-animation-export-options ID and show the bone-mapping-step ID
@@ -112,15 +115,18 @@ class RetargetModule {
       // hide the skeleton helper since we are on that step
       this.step_load_source_skeleton.show_skeleton_helper(false)
 
-
       this.start_live_preview()
 
-      // Show "Continue" button to proceed to animation listing
-      continue_button.style.display = 'block'
+      this.update_continue_button_state()
+    })
+
+    // listen for bone mapping update events to update continue button state
+    this.step_bone_mapping.addEventListener('bone-mappings-changed', () => {
+      this.update_continue_button_state()
     })
 
     // next button to go to the animation listing step
-    continue_button.onclick = () => {
+    this.continue_to_listing_button.onclick = () => {
       // Hide the bone-mapping-step ID and show the skinned-step-animation-export-options ID
       if (bone_mapping_step !== null && animation_export_options !== null) {
         bone_mapping_step.style.display = 'none'
@@ -145,14 +151,41 @@ class RetargetModule {
     }
   }
 
-  private check_for_mesh2motion_retarget (): void {
-    // if the source and target is identical, no need to do bone mapping step
-    const identical_bones: boolean = RetargetUtils.are_source_and_target_bones_identical(
+  private update_continue_button_state (): void {
+    if (this.continue_to_listing_button === null) {
+      return
+    }
+
+    // variables that control if we enable the continue button and show the tooltip
+    const identical_bones: boolean = this.is_source_and_target_rig_identical() // target rig is a M2M rig
+    const tooltip_span: HTMLElement | null = document.querySelector('#continue-button-tooltip')
+    const has_at_least_one_bone_mapping = this.step_bone_mapping.has_bone_mappings()
+
+    // only show the tooltip if we dont' have any bone mappings to provide guidance to the user
+    if (tooltip_span != null) {
+      if (has_at_least_one_bone_mapping || identical_bones) {
+        tooltip_span.style.display = 'none'
+      } else {
+        tooltip_span.style.display = 'inline-flex'
+      }
+    }
+
+    // enable/disable the continue button
+    this.continue_to_listing_button.disabled = !(identical_bones || has_at_least_one_bone_mapping)
+  }
+
+  // Helps us determine if we are uploading a Mesh2Motion rig
+  // we don't need bone mapping for that, so this helps us catch that scenario
+  private is_source_and_target_rig_identical (): boolean {
+    return RetargetUtils.are_source_and_target_bones_identical(
       AnimationRetargetService.getInstance().get_source_armature(),
       AnimationRetargetService.getInstance().get_target_armature()
     )
+  }
 
-    console.log('Are source and target bones identical (no mapping needed)?', identical_bones)
+  private check_for_mesh2motion_retarget (): void {
+    // if the source and target is identical, no need to do bone mapping step
+    const identical_bones: boolean = this.is_source_and_target_rig_identical()
 
     const target_bones_list_container = document.getElementById('target-bones-list-container')
     const no_bone_mapping_needed_message = document.getElementById('no-bone-mapping-needed-message')

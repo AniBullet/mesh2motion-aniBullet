@@ -130,8 +130,15 @@
                     </div>
                 </div>
 
-                <div style="display: flex; padding: 1rem; justify-content: flex-end;">
-                    <button id="continue-to-listing-button" style="display: none">Continue</button>
+                <div style="display: flex; padding: 1rem; justify-content: flex-end; align-items: center; gap: 0.25rem;">
+                    <button id="continue-to-listing-button" disabled>Continue</button>
+                    <span id="continue-button-tooltip"
+                        data-tippy-content="Map at least one source bone to a target bone before continuing."
+                        aria-label="Continue requirements help"
+                        style="display: inline-flex; align-items: center; color: var(--text-secondary); cursor: help;"
+                    >
+                        <span class="material-symbols-outlined" style="font-size: 1.2rem;">help</span>
+                    </span>
                 </div>
             </span>
 
