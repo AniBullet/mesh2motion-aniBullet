@@ -49,7 +49,27 @@
                 <h1>Bring your own rigged model</h1>
 
                 <div style="max-width: 30rem;">
-                    <p style="margin: 0"><strong>Experimental:</strong> The best workflow for this right now is to take a Mesh2Motion rig,  skin your model, then export to GLB. Then upload here. <a style="font-size: 1rem" target="_blank" href="https://github.com/Mesh2Motion/mesh2motion-assets/tree/main/rigs">See the existing rigs available.</a></p>
+                    <div style="
+                            padding: 0.5rem;
+                            margin: 0;
+                            border: 2px solid #dbff66;
+                            width: 100%;
+                            display: flex;
+                            gap: 0.5rem;
+                            justify-content: center;
+                        ">
+
+                        <span data-tippy-content="This feature is still being developed. The only stable workflow is to use a Mesh2Motion rig that you 'skin' in another application like Blender. Other rig types currently have issues exporting." >
+                            <span class="button-icon-group">
+                                <span>Experimental</span>
+                                <span class="material-symbols-outlined" >help</span>
+                            </span>
+                        </span>
+
+                        <a style="font-size: 1rem" target="_blank" href="https://github.com/Mesh2Motion/mesh2motion-assets/tree/main/rigs">View M2M rigs from GitHub.</a>
+                    </div>
+
+                    <p style="margin: 0; margin-top: 1rem;">Import your rig and map the bones to continue.</p>
                 </div>
 
                 <div style="display: flex; flex-direction: row; gap: 1rem; margin-top: 1rem;">
