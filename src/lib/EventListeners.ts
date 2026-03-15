@@ -4,6 +4,7 @@ import { ProcessStep } from './enums/ProcessStep'
 import { TransformSpace } from './enums/TransformSpace'
 import { Utility } from './Utilities'
 import { ModelCleanupUtility } from './processes/load-model/ModelCleanupUtility'
+import { type Bone } from 'three'
 
 export class EventListeners {
   constructor (private readonly bootstrap: Mesh2MotionEngine) {}
@@ -25,6 +26,7 @@ export class EventListeners {
       // Update skeleton helper if it exists
       if (this.bootstrap.skeleton_helper !== undefined) {
         this.bootstrap.regenerate_skeleton_helper(this.bootstrap.edit_skeleton_step.skeleton(), 'Skeleton Helper')
+        this.bootstrap.sync_skeleton_helper_joint_visibility()
       }
 
       // Refresh weight painting if in weight painted mode
@@ -33,10 +35,24 @@ export class EventListeners {
       }
     })
 
+    this.bootstrap.edit_skeleton_step.addEventListener('mirrorModeChanged', () => {
+      this.bootstrap.sync_skeleton_helper_joint_visibility()
+    })
+
+    this.bootstrap.edit_skeleton_step.addEventListener('boneEditModeChanged', () => {
+      this.bootstrap.update_edit_bone_interaction_mode()
+    })
+
     // attribution link clicking brings up contributors dialog
     this.bootstrap.ui.dom_attribution_link?.addEventListener('click', (event: MouseEvent) => {
       event.preventDefault()
       this.bootstrap.show_contributors_dialog()
+    })
+
+    // Learn link clicking brings up learning resources
+    this.bootstrap.ui.dom_learn_link?.addEventListener('click', (event: MouseEvent) => {
+      event.preventDefault()
+      this.bootstrap.show_learning_resources_dialog()
     })
 
     // listen for view helper changes
@@ -52,6 +68,10 @@ export class EventListeners {
         this.bootstrap.handle_transform_controls_moving()
       }
 
+      if (this.bootstrap.is_mesh_drag_mode_dragging) {
+        this.bootstrap.handle_mesh_drag_mode_mouse_move(event)
+      }
+
       // edit skeleton step logic that deals with hovering over bones
       if (this.bootstrap.process_step === ProcessStep.EditSkeleton) {
         this.bootstrap.edit_skeleton_step.calculate_bone_hover_effect(event, this.bootstrap.camera, this.bootstrap.transform_controls_hover_distance)
@@ -59,7 +79,15 @@ export class EventListeners {
     })
 
     this.bootstrap.renderer.domElement.addEventListener('mousedown', (event: MouseEvent) => {
-      this.bootstrap.handle_transform_controls_mouse_down(event)
+      const use_mesh_drag_mode =
+        this.bootstrap.process_step === ProcessStep.EditSkeleton &&
+        this.bootstrap.edit_skeleton_step.is_mesh_drag_placement_enabled()
+
+      if (use_mesh_drag_mode) {
+        this.bootstrap.handle_mesh_drag_mode_mouse_down(event)
+      } else {
+        this.bootstrap.handle_transform_controls_mouse_down(event)
+      }
 
       // update UI with current bone name
       if (this.bootstrap.ui.dom_selected_bone_label !== null &&
@@ -68,6 +96,10 @@ export class EventListeners {
           this.bootstrap.edit_skeleton_step.get_currently_selected_bone().name
       }
     }, false)
+
+    document.addEventListener('mouseup', () => {
+      this.bootstrap.handle_mesh_drag_mode_mouse_up()
+    })
 
     // custom event listeners for the transform controls.
     // we can know about the "mouseup" event with this
@@ -78,6 +110,17 @@ export class EventListeners {
       // Store undo state when we start dragging (event.value = true)
       if (event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton) {
         this.bootstrap.edit_skeleton_step.store_bone_state_for_undo()
+
+        // Record children's initial world positions for independent bone movement
+        if (this.bootstrap.edit_skeleton_step.independent_bone_movement.is_enabled()) {
+          const selected_bone = this.bootstrap.transform_controls.object
+          if (selected_bone !== undefined && selected_bone !== null) {
+            const mirror_bone = this.bootstrap.edit_skeleton_step.is_mirror_mode_enabled()
+              ? this.bootstrap.edit_skeleton_step.find_mirror_bone(selected_bone as Bone)
+              : undefined
+            this.bootstrap.edit_skeleton_step.independent_bone_movement.record_drag_start(selected_bone as Bone, mirror_bone)
+          }
+        }
       }
 
       // if we stopped dragging, that means a mouse up.

@@ -27,6 +27,7 @@ export class Generators {
       <li>Scott Petrovic: Project Maintainer</li>
       <li>Quaternius: Base human model, rig, and animations. <a href="http://quaternius.com/" target="_blank" rel="noopener noreferrer">quaternius.com</a></li>
       <li>Sketchpunklab: Provided algorithm to help retarget human rigs for animations. <a target="_blank" href="https://x.com/SketchpunkLabs">See social media account</a></li>
+      <li>Lino Emmenegger (oni-swr) - Adding custom animation importer.</li>
       <li>Three.js Contributors: For the amazing Three.js library. <a href="https://threejs.org/" target="_blank" rel="noopener noreferrer">threejs.org</a></li>
     </ul>
 
@@ -34,6 +35,49 @@ export class Generators {
       <p>Check out the <a href="https://github.com/Mesh2Motion" target="_blank">project's guide</a> for instructions on contributing.
       </p>
       </span>
+    `
+  }
+
+  static get_learning_resources_html (): string {
+    return `
+    <div class="learning-resources-content">
+      <div class="learning-video-list">
+        <div class="learning-video-item">
+          <a href="https://youtu.be/wea_ZFhY5MM" target="_blank" rel="noopener noreferrer">Mesh2Motion Asset Files and Organization</a>
+          <iframe
+            src="https://www.youtube.com/embed/wea_ZFhY5MM?si=wpiSz2pNjbfmCjXy"
+            title="Mesh2Motion Asset Files and Organization"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        </div>
+
+
+        <div class="learning-video-item">
+          <a href="https://youtu.be/37jW10Nk8aY" target="_blank" rel="noopener noreferrer">Create and Export Animations with Mesh2Motion and Blender</a>
+          <iframe
+            src="https://www.youtube.com/embed/37jW10Nk8aY?si=EFUSgzuc7Dm555PI"
+            title="Create and Export Animations with Mesh2Motion and Blender"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        </div>
+
+        <div class="learning-video-item">
+          <a href="https://youtu.be/Zp4F-uL8k2E" target="_blank" rel="noopener noreferrer">Blender Animation Tips for Mesh2Motion</a>
+          <iframe
+            src="https://www.youtube.com/embed/Zp4F-uL8k2E?si=iYZYgTRvVnvg3wJI"
+            title="Blender Animation Tips for Mesh2Motion"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        </div>
+
+      </div>
+    </div>
     `
   }
 

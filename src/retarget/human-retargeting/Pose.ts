@@ -86,34 +86,37 @@ export class Pose {
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Get pose offset transform
 
-    const b: THREE.Bone = skel.bones[0]
-    if (b !== null) {
+    const b: THREE.Bone | undefined = skel.bones[0]
+    if (b !== undefined) {
       const v = new THREE.Vector3()
 
+      if (b.parent !== null) {
+        b.parent.getWorldPosition(v)
+        this.poseOffset.pos[0] = v.x
+        this.poseOffset.pos[1] = v.y
+        this.poseOffset.pos[2] = v.z
 
-      b.parent.getWorldPosition(v)
-      this.poseOffset.pos[0] = v.x
-      this.poseOffset.pos[1] = v.y
-      this.poseOffset.pos[2] = v.z
+        b.parent.getWorldScale(v)
+        this.poseOffset.scl[0] = v.x
+        this.poseOffset.scl[1] = v.y
+        this.poseOffset.scl[2] = v.z
 
-      b.parent.getWorldScale(v)
-      this.poseOffset.scl[0] = v.x
-      this.poseOffset.scl[1] = v.y
-      this.poseOffset.scl[2] = v.z
-
-      const q = new THREE.Quaternion()
-      b.parent.getWorldQuaternion(q)
-      this.poseOffset.rot[0] = q.x
-      this.poseOffset.rot[1] = q.y
-      this.poseOffset.rot[2] = q.z
-      this.poseOffset.rot[3] = q.w
+        const q = new THREE.Quaternion()
+        b.parent.getWorldQuaternion(q)
+        this.poseOffset.rot[0] = q.x
+        this.poseOffset.rot[1] = q.y
+        this.poseOffset.rot[2] = q.z
+        this.poseOffset.rot[3] = q.w
+      }
     }
 
     this.updateWorld()
   }
 
   reset (): this {
-    if (!this.srcPose) { console.log('Pose.reset - No source available for resetting'); return }
+    if (this.srcPose == null) { 
+      console.log('Pose.reset - No source available for resetting'); return this
+    }
 
     for (let i = 0; i < this.joints.length; i++) {
       this.joints[i].local.copy(this.srcPose.joints[i].local)

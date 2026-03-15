@@ -1,7 +1,7 @@
-import { type AnimationClip } from 'three'
 import { type ThemeManager } from '../../ThemeManager'
 import { SkeletonType } from '../../enums/SkeletonType'
 import { type AnimationWithState } from './interfaces/AnimationWithState'
+import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair'
 
 export class AnimationSearch extends EventTarget {
   private all_animations: AnimationWithState[] = []
@@ -23,16 +23,34 @@ export class AnimationSearch extends EventTarget {
     this.setup_event_listeners()
   }
 
-  public initialize_animations (animations: AnimationClip[]): void {
+  public initialize_animations (animations: TransformedAnimationClipPair[]): void {
     // Convert to animations with state tracking
-    this.all_animations = animations.map(clip => {
-      const animation_with_state: AnimationWithState = clip as any
-      animation_with_state.name = clip.name
-      animation_with_state.isChecked = false
-      return animation_with_state
-    })
+    this.all_animations = this.map_animations_to_state(animations)
 
     this.render_filtered_animations('')
+  }
+
+  public add_animations (animations: TransformedAnimationClipPair[]): void {
+    const new_animations = this.map_animations_to_state(animations)
+
+    this.all_animations.push(...new_animations)
+    const filter_text = this.filter_input?.value.toLowerCase() ?? ''
+    this.render_filtered_animations(filter_text)
+  }
+
+  /**
+   * Convert the animation listing data to a format
+   * that works for what the UI needs
+   * @param animations The list of animations to convert to a format with state for the UI
+   * @returns A list of animations with state for the UI to track which animations are selected for export and filtering
+   */
+  private map_animations_to_state (animations: TransformedAnimationClipPair[]): AnimationWithState[] {
+    return animations.map((pair) => {
+      const animation_with_state = pair.display_animation_clip as unknown as AnimationWithState
+      animation_with_state.isChecked = false
+      animation_with_state.metadata = pair.metadata // enhanced searching/display with custom animations
+      return animation_with_state
+    })
   }
 
   private setup_event_listeners (): void {
@@ -44,7 +62,7 @@ export class AnimationSearch extends EventTarget {
   private setup_theme_change_listener (): void {
     // rebuild animation previews so we have the correct theme
     this.theme_manager.addEventListener('theme-changed', (new_theme) => {
-      this.render_filtered_animations(this.filter_input?.value || '')
+      this.render_filtered_animations(this.filter_input?.value ?? '')
     })
   }
 
@@ -113,7 +131,6 @@ export class AnimationSearch extends EventTarget {
       return animation.name.toLowerCase().includes(filter_text)
     })
 
-
     // Clear and rebuild the animation list
     this.animation_list_container.innerHTML = ''
 
@@ -122,7 +139,6 @@ export class AnimationSearch extends EventTarget {
       this.animation_list_container.innerHTML = '<div class="no-animations-message">No animations found</div>'
       return
     }
-
 
     this.filtered_animations_list.forEach((animation_clip) => {
       if (this.animation_list_container == null) {
@@ -163,18 +179,30 @@ export class AnimationSearch extends EventTarget {
 
       const anim_name: string = animation_clip.name
       const theme_name: string = this.theme_manager.get_current_theme()
+      const is_custom_animation = animation_clip.metadata?.source_type === 'custom-import'
 
-      // Use a placeholder for the video preview, to be replaced by IntersectionObserver
-      this.animation_list_container.innerHTML +=
-        `<div class="anim-item">
-            <button class="secondary-button play" data-index="${original_index}" style="display: flex; flex-direction:column">
-              <div class="anim-preview-placeholder" data-src="../animpreviews/${preview_folder}/${theme_name}_${anim_name}.webm" style="pointer-events: none;"></div>
-            </button>
+      const preview_data_src_attribute = is_custom_animation
+        ? ''
+        : ` data-src="../animpreviews/${preview_folder}/${theme_name}_${anim_name}.webm"`
+
+      const custom_animation_badge_html = is_custom_animation
+        ? '<span class="anim-custom-badge" title="Custom animation" aria-label="Custom animation">C</span>'
+        : ''
+
+      const animation_entry_html = `
+        <div class="${is_custom_animation ? 'anim-custom-item' : 'anim-item'}">
+          <button class="secondary-button play" data-index="${original_index}" style="display: flex; flex-direction:column; position: relative;">
+            ${custom_animation_badge_html}
+            <div class="anim-preview-placeholder"${preview_data_src_attribute} style="pointer-events: none;"></div>
             <label class="styled-checkbox">
-                <input type="checkbox" name="${animation_clip.name}" value="${original_index}" ${checked_attribute}>
-                <span class="anim-preview-label">${this.animation_name_clean(animation_clip.name)}</span>
+              <input type="checkbox" name="${animation_clip.name}" value="${original_index}" ${checked_attribute}>
+              <span class="anim-preview-label">${this.animation_name_clean(animation_clip.name)}</span>
             </label>
+          </button>
         </div>`
+
+      // append the entire item HTML to the DOM element
+      this.animation_list_container.innerHTML += animation_entry_html
     })
 
     // only so many WebM videos can be playing at the same time

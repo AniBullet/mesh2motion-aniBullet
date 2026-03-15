@@ -27,11 +27,12 @@
         </div>
 
         <div style="display: inline-flex; align-items: center;">
-            <a href="https://support.mesh2motion.org" target="_blank"> 💗 Support</a>
+            <a href="#" id="learn-link">Learn</a>
+            <a href="#" id="attribution-link">Contributors</a>
+             <a href="https://support.mesh2motion.org" target="_blank">💗</a>
             <a href="https://github.com/scottpetrovic/mesh2motion-app" target="_blank">
                 <img src="../images/github-white-icon.png" width="24" height="24" alt="GitHub" />
             </a>
-            <a href="#" id="attribution-link">Contributors</a>
 
             <!-- Theme Toggle -->
             <button id="theme-toggle">
@@ -59,7 +60,7 @@
                             justify-content: center;
                         ">
 
-                        <span data-tippy-content="This feature is still being developed. The only stable workflow is to use a Mesh2Motion rig that you 'skin' in another application like Blender. Other rig types currently have issues exporting." >
+                        <span data-tippy-content="This feature is still being developed. The main stable workflow is to use a Mesh2Motion rig that you 'skin' in another application like Blender. Mixamo skeletons supported as long as there is only 1 skeleton in the file." >
                             <span class="button-icon-group">
                                 <span>Experimental</span>
                                 <span class="material-symbols-outlined" >help</span>
@@ -79,7 +80,7 @@
                             <span>Mesh2Motion Skeleton</span>
                         </h2>
                         <div class="bone-map-content">
-                            <div id="skeleton-selection-container" >
+                            <div id="skeleton-selection-container" style="margin-bottom: 1.0rem;">
                                 <select id="skeleton-type-select" class="button">
                                     <option value="human" selected>Human</option>
                                     <option value="quadraped">Quadruped (Fox)</option>
@@ -89,7 +90,11 @@
                                 </select>
                             </div>
                             
-                            <p>Source Bones <span id="source-bone-count">(0)</span></p>
+                            <div style="display: flex; gap: 1.0rem; margin-bottom: 1rem;">
+                                <input type="text" id="source-bones-filter" placeholder="Source bones filter" style="flex-grow: 1;">
+                                <span><span id="source-bone-count">0</span> bones</span>
+                            </div>
+  
                             <div id="source-bones-list">
                                 <p style="color: var(--text-secondary);">No source skeleton loaded</p>
                             </div>
@@ -106,19 +111,26 @@
                         <p class="bone-map-heading">
                             <span>Your 3D Rig Model</span>
                             <span id="auto-bone-map-match">✨Mixamo</span>
+                            <span id="view-bone-tree-button" data-tippy-content="View bone hierarchy for for debugging purposes" style="display: none;">👓</span>
                         </p>
                         <div class="bone-map-content">
-                            <div style="display: flex; gap: 0.5rem;">
+                            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
                                 <!-- there are some issues going on with scaling the skeleton for FBX and other formats so we will start simple for now with just GLB files -->
                                 <input type="file" id="upload-file" accept=".glb, .fbx, .zip" style="display: none;" />
                                 <label for="upload-file" class="button" id="load-model-button">Upload Rig</label>
 
-                                <button id="auto-map-button" class="secondary-button" style="display: none;">Auto-Map Bones</button>
+                                <button id="auto-map-button" class="secondary-button" style="display: none;">Auto-Map</button>
                                 <button id="clear-mappings-button" class="secondary-button" style="display: none;">Clear Mappings</button>
                             </div>
                             
-                            <span id="target-bones-list-container">
-                                <p>Target Bones <span id="target-bone-count">(0)</span></p>
+                            <span id="target-bones-list-container"  >
+
+                                <div style="display: flex; gap: 1.0rem;"  >
+                                    <input type="text" id="target-bones-filter" placeholder="Target bones filter" style="flex-grow: 1">
+                                    <span><span id="target-bone-count">0</span> bones</span> 
+                                </div>
+
+                                
                                 <div id="target-bones-list">
                                     <p style="color: var(--text-secondary);">No target skeleton loaded</p>
                                 </div>
@@ -133,7 +145,7 @@
                 <div style="display: flex; padding: 1rem; justify-content: flex-end; align-items: center; gap: 0.25rem;">
                     <button id="continue-to-listing-button" disabled>Continue</button>
                     <span id="continue-button-tooltip"
-                        data-tippy-content="Map at least one source bone to a target bone before continuing."
+                        data-tippy-content="Map at least one source bone to a target bone before continuing by dragging a bone from the source bones list to the target bones list."
                         aria-label="Continue requirements help"
                         style="display: inline-flex; align-items: center; color: var(--text-secondary); cursor: help;"
                     >
@@ -166,20 +178,10 @@
 
 
                     <div style="display: flex; gap: 0.5rem;">
-                        <button class="secondary-button" id="back_to_bone_map_button" >&#x2039; Back</button>
+                        <button class="no-style-button" id="back_to_bone_map_button" >&#x2039; Back</button>
 
-
-                        <!-- checkbox option to show skeleton -->
-                        <div class="styled-checkbox icon-toggle">
-                            <input type="checkbox" id="show-skeleton-checkbox" name="show-skeleton" value="show" style="display:none;">
-                            <label for="show-skeleton-checkbox" data-tippy-content="Show skeleton"  tabindex="0">
-                                <img src="../images/icons/bone-display.svg" width="30" height="30" alt="Show skeleton" />
-                            </label>
-                        </div>
-
-                        <!-- I renamed the button ID since we need to process the aniamtions different
-                             -->
-                        <button id="export-retargeting-button" title="Export animations. Make sure to select the animations you want to export first.">
+                        <!-- I renamed the button ID since we need to process the animations differently -->
+                        <button id="export-retargeting-button" data-tippy-content="Exporting will combine all animations into a single GLB file.">
                             <span class="button-icon-group">
                                 <span class="material-symbols-outlined">save_alt</span>
                                 <span>Download <span id="animation-selection-count">0</span></span>
@@ -212,6 +214,15 @@
                     <span id="total-time">0f</span>
                 </span>
                 <input type="range" id="animation-scrubber" min="0" max="100" value="0" disabled>
+
+                <!-- checkbox option to show skeleton -->
+                <div id="skeleton-toggle" class="styled-checkbox icon-toggle" >
+                    <input type="checkbox" id="show-skeleton-checkbox" name="show-skeleton" value="show" style="display:none;">
+                    <label for="show-skeleton-checkbox" data-tippy-content="Show skeleton"  tabindex="0" style="border-radius: 0">
+                        <img src="../images/icons/bone-display.svg" class="action-icon" alt="Show skeleton" style="user-select: none;" />
+                    </label>
+                </div>
+
             </div>
 
         </div>
@@ -220,14 +231,14 @@
     <!-- Top toolbar with mouse controls -->
     <div id="header-ui">
         <div>
-            <img src="/images/mouse-left.svg" height="30" width="30" style="vertical-align: middle;"/> Rotate
+            <img class="nav-icon" src="/images/mouse-left.svg" style="vertical-align: middle;"/> Rotate
         </div>
 
         <div>
-            <img src="/images/mouse-right.svg" height="30" width="30" style="vertical-align: middle;"/> Pan
+            <img class="nav-icon" src="/images/mouse-right.svg" style="vertical-align: middle;"/> Pan
         </div>
         <div>
-            <img src="/images/mouse-middle.svg" height="30" width="30" style="vertical-align: middle;"/> Zoom
+            <img class="nav-icon" src="/images/mouse-middle.svg" style="vertical-align: middle;"/> Zoom
         </div>
     </div>
 

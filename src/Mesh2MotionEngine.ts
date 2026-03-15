@@ -15,6 +15,7 @@ import { UI } from './lib/UI.ts'
 import { StepLoadModel } from './lib/processes/load-model/StepLoadModel.ts'
 import { StepLoadSkeleton } from './lib/processes/load-skeleton/StepLoadSkeleton.ts'
 import { StepEditSkeleton } from './lib/processes/edit-skeleton/StepEditSkeleton.ts'
+import { MeshDragBonePlacement } from './lib/processes/edit-skeleton/MeshDragBonePlacement.ts'
 import { StepAnimationsListing } from './lib/processes/animations-listing/StepAnimationsListing.ts'
 import { StepExportToFile } from './lib/processes/export-to-file/StepExportToFile.ts'
 import { StepWeightSkin } from './lib/processes/weight-skin/StepWeightSkin.ts'
@@ -41,6 +42,7 @@ export class Mesh2MotionEngine {
   public readonly transform_controls: TransformControls = new TransformControls(this.camera, this.renderer.domElement)
   public is_transform_controls_dragging: boolean = false
   public readonly transform_controls_hover_distance: number = 0.02 // distance to hover over bones to select them
+  public readonly mesh_drag_bone_placement: MeshDragBonePlacement
 
   public view_helper: CustomViewHelper | undefined // mini 3d view to help orient orthographic views
 
@@ -67,6 +69,8 @@ export class Mesh2MotionEngine {
   public transform_space_type: TransformSpace = TransformSpace.Global
 
   private readonly clock = new THREE.Clock()
+  private readonly fog_near: number = 20
+  private readonly fog_far: number = 80
 
   private environment_container: Group = new Group()
   private readonly eventListeners: EventListeners
@@ -87,6 +91,13 @@ export class Mesh2MotionEngine {
     this.weight_skin_step = new StepWeightSkin()
     this.animations_listing_step = new StepAnimationsListing(this.theme_manager)
     this.file_export_step = new StepExportToFile()
+    this.mesh_drag_bone_placement = new MeshDragBonePlacement(
+      this.camera,
+      this.edit_skeleton_step,
+      this.load_model_step,
+      this.weight_skin_step,
+      this.transform_controls_hover_distance
+    )
 
     this.setup_environment()
     this.eventListeners.addEventListeners()
@@ -142,15 +153,31 @@ export class Mesh2MotionEngine {
 
   public set_fog_enabled (enabled: boolean): void {
     if (enabled) {
-      // Determine fog color based on theme
-      let floor_color = 0x2d4353
-      if (this.theme_manager.get_current_theme() === 'light') {
-        floor_color = 0xecf0f1
-      }
-      this.scene.fog = new THREE.Fog(floor_color, 20, 80)
+      this.apply_scene_fog()
     } else {
       this.scene.fog = null
     }
+  }
+
+  private get_environment_colors (): { grid_color: number, floor_color: number, light_strength: number } {
+    if (this.theme_manager.get_current_theme() === 'light') {
+      return {
+        grid_color: 0xcccccc,
+        floor_color: 0xecf0f1,
+        light_strength: 14
+      }
+    }
+
+    return {
+      grid_color: 0x4f6f6f,
+      floor_color: 0x2d4353,
+      light_strength: 10
+    }
+  }
+
+  private apply_scene_fog (): void {
+    const { floor_color } = this.get_environment_colors()
+    this.scene.fog = new THREE.Fog(floor_color, this.fog_near, this.fog_far)
   }
 
   private setup_environment (): void {
@@ -181,6 +208,7 @@ export class Mesh2MotionEngine {
     this.controls.maxDistance = 30 // Maximum zoom (farthest from model)
 
     this.controls.update()
+    this.mesh_drag_bone_placement.set_orbit_controls(this.controls)
 
     this.view_helper = new CustomViewHelper(this.camera, document.getElementById('view-control-hitbox'))
     this.view_helper.set_labels('X', 'Y', 'Z')
@@ -201,17 +229,9 @@ export class Mesh2MotionEngine {
       this.scene.remove(setup_container)
     }
 
-    // change color of grid based on theme
-    let grid_color = 0x4f6f6f
-    let floor_color = 0x2d4353
-    let light_strength: number = 10
-    if (this.theme_manager.get_current_theme() === 'light') {
-      grid_color = 0xcccccc // light theme color
-      floor_color = 0xecf0f1 // light theme color
-      light_strength = 14
-    }
+    const { grid_color, floor_color, light_strength } = this.get_environment_colors()
 
-    this.scene.fog = new THREE.Fog(floor_color, 20, 80)
+    this.apply_scene_fog()
 
     this.environment_container = new Group()
     this.environment_container.name = 'Setup objects'
@@ -227,13 +247,26 @@ export class Mesh2MotionEngine {
     }
 
     if (this.use_custom_skeleton_helper) {
-      this.skeleton_helper = new CustomSkeletonHelper(new_skeleton.bones[0], { linewidth: 4, color: 0x4e7d58 })
+      this.skeleton_helper = new CustomSkeletonHelper(new_skeleton.bones[0], { linewidth: 4, color: 0x4e7d58 }) // line segment color
     } else {
       this.skeleton_helper = new THREE.SkeletonHelper(new_skeleton.bones[0])
     }
 
     this.skeleton_helper.name = helper_name
     this.scene.add(this.skeleton_helper)
+  }
+
+  public sync_skeleton_helper_joint_visibility (): void {
+    if (!(this.skeleton_helper instanceof CustomSkeletonHelper)) {
+      return
+    }
+
+    const is_edit_skeleton_step = this.process_step === ProcessStep.EditSkeleton
+
+    this.skeleton_helper.setJointsVisible(is_edit_skeleton_step)
+    this.skeleton_helper.setHideRightSideJoints(
+      is_edit_skeleton_step && this.edit_skeleton_step.is_mirror_mode_enabled()
+    )
   }
 
   public update_a_pose_options_visibility (): void {
@@ -247,10 +280,49 @@ export class Mesh2MotionEngine {
   }
 
   public handle_transform_controls_moving (): void {
+    const selected_bone: Bone = this.transform_controls.object as Bone
+
     if (this.edit_skeleton_step.is_mirror_mode_enabled()) {
-      const selected_bone: Bone = this.transform_controls.object as Bone
       this.edit_skeleton_step.apply_mirror_mode(selected_bone, this.transform_controls.getMode())
     }
+
+    if (this.edit_skeleton_step.independent_bone_movement.is_enabled() &&
+        this.transform_controls.getMode() === 'translate') {
+      const mirror_bone = this.edit_skeleton_step.is_mirror_mode_enabled()
+        ? this.edit_skeleton_step.find_mirror_bone(selected_bone)
+        : undefined
+      this.edit_skeleton_step.independent_bone_movement.apply(selected_bone, mirror_bone)
+    }
+  }
+
+  public handle_mesh_drag_mode_mouse_down (mouse_event: MouseEvent): void {
+    this.mesh_drag_bone_placement.handle_mouse_down(mouse_event)
+  }
+
+  public handle_mesh_drag_mode_mouse_move (mouse_event: MouseEvent): void {
+    this.mesh_drag_bone_placement.handle_mouse_move(mouse_event)
+  }
+
+  public handle_mesh_drag_mode_mouse_up (): void {
+    const did_end_drag = this.mesh_drag_bone_placement.handle_mouse_up()
+
+    if (!did_end_drag) {
+      return
+    }
+
+    if (this.process_step === ProcessStep.EditSkeleton &&
+      this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted) {
+      this.regenerate_weight_painted_preview_mesh()
+    }
+  }
+
+  public update_edit_bone_interaction_mode (): void {
+    this.mesh_drag_bone_placement.sync_interaction_mode(this.process_step, this.transform_controls)
+    this.is_transform_controls_dragging = false
+  }
+
+  public get is_mesh_drag_mode_dragging (): boolean {
+    return this.mesh_drag_bone_placement.is_dragging()
   }
 
   private show_skin_failure_message (bone_names_with_errors: string[], error_point_positions: Vector3[]): void {
@@ -350,10 +422,10 @@ export class Mesh2MotionEngine {
       this.regenerate_skeleton_helper(this.edit_skeleton_step.skeleton())
       process_step = ProcessStep.EditSkeleton
       this.edit_skeleton_step.begin(this.scene, this.load_skeleton_step.skeleton_type())
-      this.transform_controls.enabled = true
+      this.update_edit_bone_interaction_mode()
       this.transform_controls.setMode(this.transform_controls_type) // 'translate', 'rotate'
 
-      this.skeleton_helper?.setJointsVisible(true)
+      this.sync_skeleton_helper_joint_visibility()
 
       this.mesh_preview_display_type = ModelPreviewDisplay.WeightPainted
       this.changed_model_preview_display(this.mesh_preview_display_type) // show weight painted mesh by default
@@ -374,7 +446,7 @@ export class Mesh2MotionEngine {
 
       // update reference of skeleton helper to use the final skinned mesh
       this.regenerate_skeleton_helper(this.weight_skin_step.skeleton())
-      this.skeleton_helper?.setJointsVisible(false) // no need to show joints during
+      this.sync_skeleton_helper_joint_visibility()
 
       // hide skeleton by default in animations listing step
       if (this.ui.dom_show_skeleton_checkbox !== null) {
@@ -491,6 +563,10 @@ export class Mesh2MotionEngine {
       return
     }
 
+    if (!this.edit_skeleton_step.is_bone_selectable(closest_bone)) {
+      return
+    }
+
     // only do selection if we are close
     // the orbit controls also have panning with alt-click, so we don't want to interfere with that
     if (closest_distance === null || closest_distance > this.transform_controls_hover_distance) {
@@ -593,5 +669,9 @@ export class Mesh2MotionEngine {
 
   public show_contributors_dialog (): void {
     new ModalDialog('Contributors', Generators.get_contributors_list()).show()
+  }
+
+  public show_learning_resources_dialog (): void {
+    new ModalDialog('Learning Resources', Generators.get_learning_resources_html()).show()
   }
 } // end Mesh2Motion Engine

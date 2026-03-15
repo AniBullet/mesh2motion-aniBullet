@@ -8,6 +8,10 @@ export class UI {
   dom_load_model_button: HTMLButtonElement | null = null
   dom_load_model_debug_checkbox: HTMLInputElement | null = null
 
+  // toggle for showing/hiding skeleton in the 3D view
+  dom_show_skeleton_container: HTMLElement | null = null
+  dom_show_skeleton_checkbox: HTMLInputElement | null = null
+
   // load skeleton UI
   dom_rotate_model_x_button: HTMLButtonElement | null = null
   dom_rotate_model_y_button: HTMLButtonElement | null = null
@@ -20,7 +24,9 @@ export class UI {
   dom_skeleton_drop_type: HTMLSelectElement | null = null
   dom_hand_skeleton_options: HTMLElement | null = null
   dom_hand_skeleton_selection: HTMLSelectElement | null = null
-  dom_mirror_skeleton_checkbox: HTMLElement | null = null
+  dom_mirror_skeleton_checkbox: HTMLInputElement | null = null
+  dom_independent_bone_movement_checkbox: HTMLInputElement | null = null
+  dom_mesh_drag_placement_checkbox: HTMLInputElement | null = null
   dom_scale_skeleton_button: HTMLButtonElement | null = null
   dom_undo_button: HTMLButtonElement | null = null
   dom_redo_button: HTMLButtonElement | null = null
@@ -36,6 +42,7 @@ export class UI {
 
   // edit skeleton UI step controls
   dom_selected_bone_label: HTMLElement | null = null
+  dom_transform_manual_options: HTMLElement | null = null
   dom_transform_type_radio_group: HTMLElement | null = null
   dom_transform_space_radio_group: HTMLElement | null = null
 
@@ -48,7 +55,6 @@ export class UI {
 
   dom_skinned_mesh_tools: HTMLElement | null = null
   dom_skinned_mesh_animation_tools: HTMLElement | null = null
-  dom_show_skeleton_checkbox: HTMLInputElement | null = null
   dom_back_to_edit_skeleton_button: HTMLButtonElement | null = null
   dom_back_to_load_skeleton_button: HTMLButtonElement | null = null
   dom_back_to_load_model_button: HTMLButtonElement | null = null
@@ -78,6 +84,7 @@ export class UI {
   dom_total_time: HTMLElement | null = null
 
   dom_import_animations_button: HTMLButtonElement | null = null
+  dom_import_animations_input: HTMLInputElement | null = null
   dom_extend_arm_range_input: HTMLInputElement | null = null
   dom_extend_arm_numeric_input: HTMLInputElement | null = null
   dom_a_pose_correction_options: HTMLElement | null = null
@@ -85,8 +92,13 @@ export class UI {
   dom_animation_count: HTMLElement | null = null
   dom_animations_listing_count: HTMLElement | null = null
 
+  // retarget bone map filters
+  dom_source_bones_filter: HTMLInputElement | null = null
+  dom_target_bones_filter: HTMLInputElement | null = null
+
   dom_build_version: HTMLElement | null = null
   dom_attribution_link: HTMLAnchorElement | null = null
+  dom_learn_link: HTMLAnchorElement | null = null
 
   private constructor () {
     this.initialize_dom_elements()
@@ -103,6 +115,10 @@ export class UI {
     // grab all UI Elements from page that we need to interact with
     this.dom_current_step_index = document.querySelector('#current-step-index')
     this.dom_current_step_element = document.querySelector('#current-step-label')
+
+    // skeleton toggle on UI viewport
+    this.dom_show_skeleton_container = document.querySelector('#skeleton-toggle')
+    this.dom_show_skeleton_checkbox = document.querySelector('#show-skeleton-checkbox')
 
     // UI controls for loading the model
     this.dom_load_model_tools = document.querySelector('#load-model-tools')
@@ -124,6 +140,8 @@ export class UI {
     this.dom_hand_skeleton_options = document.querySelector('#hand-skeleton-options')
     this.dom_hand_skeleton_selection = document.querySelector('#hand-skeleton-selection')
     this.dom_mirror_skeleton_checkbox = document.querySelector('#mirror-skeleton')
+    this.dom_independent_bone_movement_checkbox = document.querySelector('#independent-bone-movement')
+    this.dom_mesh_drag_placement_checkbox = document.querySelector('#mesh-drag-placement')
     this.dom_scale_skeleton_button = document.querySelector('#scale-skeleton-button')
     this.dom_reset_skeleton_scale_button = document.querySelector('#reset-skeleton-scale-button')
 
@@ -131,6 +149,7 @@ export class UI {
     this.dom_redo_button = document.querySelector('#redo-button')
 
     this.dom_selected_bone_label = document.querySelector('#edit-selected-bone-label')
+    this.dom_transform_manual_options = document.querySelector('#transform-manual-options')
 
     this.dom_transform_type_radio_group = document.querySelector('#transform-control-type-group')
     this.dom_transform_space_radio_group = document.querySelector('#transform-space-group')
@@ -156,7 +175,7 @@ export class UI {
     // UI controls for working with skinned mesh
     this.dom_skinned_mesh_tools = document.querySelector('#skinned-step-tools')
     this.dom_skinned_mesh_animation_tools = document.querySelector('#skinned-step-animation-export-options')
-    this.dom_show_skeleton_checkbox = document.querySelector('#show-skeleton-checkbox')
+
     this.dom_back_to_edit_skeleton_button = document.querySelector('#action_back_to_edit_skeleton')
     this.dom_back_to_load_skeleton_button = document.querySelector('#action_back_to_load_skeleton')
     this.dom_back_to_load_model_button = document.querySelector('#action_back_to_load_model')
@@ -166,7 +185,8 @@ export class UI {
     // UI Controls for working with animation list/selection and export
     this.dom_animation_clip_list = document.querySelector('#animations-items')
     this.dom_export_button = document.querySelector('#export-button')
-    this.dom_import_animations_button = document.querySelector('#mirror-animations-checkbox')
+    this.dom_import_animations_button = document.querySelector('#import-animations-button')
+    this.dom_import_animations_input = document.querySelector('#import-animations-input')
     this.dom_mirror_animations_checkbox = document.querySelector('#mirror-animations-checkbox')
     this.dom_reset_a_pose_button = document.querySelector('#reset-a-pose-button')
 
@@ -191,11 +211,16 @@ export class UI {
     this.dom_build_version = document.querySelector('#build-version')
 
     this.dom_attribution_link = document.querySelector('#attribution-link')
+    this.dom_learn_link = document.querySelector('#learn-link')
 
     // UI for exporting the animation
     this.dom_export_button_hidden_link = document.querySelector('#download-hidden-link')
     this.dom_animation_count = document.querySelector('#animation-selection-count')
     this.dom_animations_listing_count = document.querySelector('#animation-listing-count')
+
+    // retarget bone map filter controls
+    this.dom_source_bones_filter = document.querySelector('#source-bones-filter')
+    this.dom_target_bones_filter = document.querySelector('#target-bones-filter')
   }
 
   public hide_all_elements (): void {
@@ -213,6 +238,9 @@ export class UI {
     }
     if (this.dom_skinned_mesh_animation_tools != null) {
       this.dom_skinned_mesh_animation_tools.style.display = 'none'
+    }
+    if (this.dom_show_skeleton_container != null) {
+      this.dom_show_skeleton_container.style.display = 'none'
     }
   }
 }

@@ -3,6 +3,7 @@ import { Generators } from '../../Generators.ts'
 import { Utility } from '../../Utilities.ts'
 import { UndoRedoSystem } from './UndoRedoSystem.ts'
 import { PreviewPlaneManager } from './PreviewPlaneManager.ts'
+import { IndependentBoneMovement } from './IndependentBoneMovement.ts'
 import {
   Vector3,
   Euler,
@@ -37,6 +38,7 @@ export class StepEditSkeleton extends EventTarget {
   // Skeleton created from the armature that Three.js uses
   private threejs_skeleton: Skeleton = new Skeleton()
   private mirror_mode_enabled: boolean = true
+  private mesh_drag_placement_enabled: boolean = true
   private skinning_algorithm: string | null = null
   private show_debug: boolean = true
 
@@ -53,6 +55,7 @@ export class StepEditSkeleton extends EventTarget {
 
   private _added_event_listeners: boolean = false
   private readonly preview_plane_manager: PreviewPlaneManager = PreviewPlaneManager.getInstance()
+  public readonly independent_bone_movement: IndependentBoneMovement = new IndependentBoneMovement()
 
   constructor () {
     super()
@@ -134,6 +137,23 @@ export class StepEditSkeleton extends EventTarget {
       this.show_debug = false
     }
 
+    let mirror_mode_enabled: boolean = this.mirror_mode_enabled
+
+    if (this.ui.dom_mirror_skeleton_checkbox !== null) {
+      mirror_mode_enabled = this.ui.dom_mirror_skeleton_checkbox.checked
+    }
+
+    this.set_mirror_mode_enabled(mirror_mode_enabled)
+
+    // Initialize independent bone movement from checkbox state
+    if (this.ui.dom_independent_bone_movement_checkbox !== null) {
+      this.independent_bone_movement.set_enabled(this.ui.dom_independent_bone_movement_checkbox.checked)
+    }
+
+    if (this.ui.dom_mesh_drag_placement_checkbox !== null) {
+      this.set_mesh_drag_placement_enabled(this.ui.dom_mesh_drag_placement_checkbox.checked)
+    }
+
     this.update_bind_button_text()
 
     // Don't add event listeners again if we are navigating back to this step
@@ -190,7 +210,7 @@ export class StepEditSkeleton extends EventTarget {
    * @description This is the bone that is currently selected in the UI while editing
    * the skeleton.
    */
-  public set_currently_selected_bone (bone: Bone): void {
+  public set_currently_selected_bone (bone: Bone | null): void {
     this.currently_selected_bone = bone
   }
 
@@ -200,10 +220,63 @@ export class StepEditSkeleton extends EventTarget {
 
   public set_mirror_mode_enabled (value: boolean): void {
     this.mirror_mode_enabled = value
+    this.dispatchEvent(new CustomEvent('mirrorModeChanged', {
+      detail: { enabled: value }
+    }))
   }
 
   public is_mirror_mode_enabled (): boolean {
     return this.mirror_mode_enabled
+  }
+
+  public set_mesh_drag_placement_enabled (value: boolean): void {
+    this.mesh_drag_placement_enabled = value
+    this.update_manual_transform_options_visibility()
+    this.dispatchEvent(new CustomEvent('boneEditModeChanged', {
+      detail: { enabled: value }
+    }))
+  }
+
+  public is_mesh_drag_placement_enabled (): boolean {
+    return this.mesh_drag_placement_enabled
+  }
+
+  private update_manual_transform_options_visibility (): void {
+    if (this.ui.dom_transform_manual_options === null) {
+      return
+    }
+
+    this.ui.dom_transform_manual_options.style.display = this.mesh_drag_placement_enabled ? 'none' : 'flex'
+  }
+
+  public is_bone_selectable (bone: Bone | null): boolean {
+    if (bone === null) {
+      return false
+    }
+
+    if (!this.mirror_mode_enabled) {
+      return true
+    }
+
+    return !this.is_right_side_bone(bone)
+  }
+
+  private is_right_side_bone (bone: Bone): boolean {
+    const normalized_bone_name = bone.name.toLowerCase()
+    return /(^right_|^r_|_right$|_r$|\.right$|\.r$|-right$|-r$)/.test(normalized_bone_name)
+  }
+
+  /**
+   * Find the mirrored counterpart of a bone by stripping side suffixes and
+   * matching against the rest of the skeleton. Returns undefined for centre-line
+   * bones (spine, neck, head, etc.) that have no counterpart.
+   */
+  public find_mirror_bone (bone: Bone): Bone | undefined {
+    const base_name = Utility.calculate_bone_base_name(bone.name)
+    return this.threejs_skeleton.bones.find((candidate) => {
+      const candidate_base = Utility.calculate_bone_base_name(candidate.name)
+      return candidate_base === base_name && candidate.name !== bone.name
+    })
   }
 
   public algorithm (): string | null {
@@ -254,13 +327,49 @@ export class StepEditSkeleton extends EventTarget {
 
     if (this.ui.dom_mirror_skeleton_checkbox !== null) {
       this.ui.dom_mirror_skeleton_checkbox.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement | null
+
+        if (target === null) {
+          return
+        }
+
         // mirror skeleton movements along the X axis
-        this.set_mirror_mode_enabled(event.target.checked)
+        this.set_mirror_mode_enabled(target.checked)
+      })
+    }
+
+    if (this.ui.dom_independent_bone_movement_checkbox !== null) {
+      this.ui.dom_independent_bone_movement_checkbox.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement | null
+
+        if (target === null) {
+          return
+        }
+
+        this.independent_bone_movement.set_enabled(target.checked)
+      })
+    }
+
+    if (this.ui.dom_mesh_drag_placement_checkbox !== null) {
+      this.ui.dom_mesh_drag_placement_checkbox.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement | null
+
+        if (target === null) {
+          return
+        }
+
+        this.set_mesh_drag_placement_enabled(target.checked)
       })
     }
 
     this.ui.dom_enable_skin_debugging?.addEventListener('change', (event) => {
-      this.show_debug = event.target.checked
+      const target = event.target as HTMLInputElement | null
+
+      if (target === null) {
+        return
+      }
+
+      this.show_debug = target.checked
       this.update_bind_button_text()
     })
 
@@ -405,27 +514,10 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public apply_mirror_mode (selected_bone: Bone, transform_type: string): void {
-    // if we are on the positive side mirror mode is enabled
-    // we need to change the position of the bone on the other side of the mirror
-
-    // first step is to find the base bone name
-    // strip out the left/right and _L/_R from the name
-    // mixamo is a common skeleton that prefixes everything with mixamorig_, so remove that
-    const base_bone_name = Utility.calculate_bone_base_name(selected_bone.name)
-
-    // Find another bone that has the same base name
-    // that should be the mirror
-    let mirror_bone: Bone | undefined
-
-    this.threejs_skeleton.bones.forEach((bone) => {
-      const bone_name_to_compare = Utility.calculate_bone_base_name(bone.name)
-      if (bone_name_to_compare === base_bone_name && bone.name !== selected_bone.name) {
-        mirror_bone = bone
-      }
-    })
+    const mirror_bone = this.find_mirror_bone(selected_bone)
 
     if (mirror_bone === undefined) {
-      return // we probably something along the axis (head, neck, spine)
+      return // centre-line bone (head, neck, spine) — no counterpart
     }
 
     if (transform_type === 'translate') {
@@ -448,6 +540,7 @@ export class StepEditSkeleton extends EventTarget {
       mirror_bone.quaternion.setFromEuler(euler)
     }
 
+    // updateWorldMatrix(updateParents, updateChildren) - propagate changes up and down the hierarchy
     mirror_bone.updateWorldMatrix(true, true)
   }
 
@@ -465,6 +558,11 @@ export class StepEditSkeleton extends EventTarget {
     // only do selection if we are close
     // the orbit controls also have panning with alt-click, so we don't want to interfere with that
     if (closest_distance === null || closest_distance > hover_distance) {
+      this.update_bone_hover_point_position(null)
+      return
+    }
+
+    if (!this.is_bone_selectable(closest_bone)) {
       this.update_bone_hover_point_position(null)
       return
     }
@@ -496,10 +594,11 @@ export class StepEditSkeleton extends EventTarget {
 
       const material = new PointsMaterial({
         color: 0x69a1d0, // Blue color
-        size: 20, // Size of the point in pixels
+        size: 30, // Size of the point in pixels
         sizeAttenuation: false, // Disable size attenuation
         depthTest: false, // always render on top
         map: this.joint_texture, // Use a circular texture
+        opacity: 0.7,
         transparent: true // Enable transparency for the circular texture
       })
 

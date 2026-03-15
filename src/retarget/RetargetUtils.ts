@@ -1,9 +1,47 @@
-import { Scene, type Group, type Object3DEventMap, type Skeleton, type SkinnedMesh } from 'three'
+import { type Scene, Group, Skeleton, type SkinnedMesh, type Bone, type Object3D } from 'three'
 import { ModalDialog } from '../lib/ModalDialog.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 
+export interface TrackNameParts {
+  bone_name: string
+  property: string
+}
+
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class RetargetUtils {
+  /**
+   * Convert a Group (with Armature and Bone hierarchy) to a detached THREE.Skeleton
+   * @param group The root Group containing the Armature and Bone hierarchy
+   * @returns Skeleton or null if not found
+   */
+  static create_skeleton_from_group_object (group: Group): Skeleton | null {
+    const armature = group.children.find(child => child.type === 'Object3D' &&
+      child.name.toLowerCase().includes('armature'))
+
+    if (armature === undefined) return null
+
+    const root_bone = armature.children.find(child => child.type === 'Bone') as Bone | undefined
+    if (root_bone === undefined) return null
+
+    const detached_armature = armature.clone(true)
+    const bones = this.collect_bones(detached_armature)
+    if (bones.length === 0) return null
+
+    const skeleton = new Skeleton(bones)
+    skeleton.calculateInverses()
+    skeleton.pose()
+    return skeleton
+  }
+
+  /**
+   * Recursively collect all bones from an Object3D subtree.
+   */
+  static collect_bones (object: Object3D, bones: Bone[] = []): Bone[] {
+    if (object.type === 'Bone') bones.push(object as Bone)
+    object.children.forEach(child => this.collect_bones(child, bones))
+    return bones
+  }
+
   /**
    * Resets all SkinnedMeshes in the group to their rest pose
    */
@@ -95,10 +133,136 @@ export class RetargetUtils {
   }
 
   /**
-   * Create a track name in the format expected by Three.js
-   * For named bones, use: BoneName.property
+   * Parse a track name to extract bone name and property (e.g., "quaternion", "position", "scale")
+   * Handles various formats like "boneName.property" or ".bones[boneName].property"
    */
-  static create_track_name (bone_name: string, property: string): string {
-    return `${bone_name}.${property}`
+  static parse_track_name_for_metadata (track_name: string): TrackNameParts | null {
+    // Try format: "boneName.property"
+    const simple_match = track_name.match(/^([^.]+)\.(.+)$/)
+    if (simple_match !== null) {
+      return {
+        bone_name: simple_match[1],
+        property: simple_match[2]
+      }
+    }
+
+    // Try format: ".bones[boneName].property"
+    const bones_match = track_name.match(/\.bones\[([^\]]+)\]\.(.+)$/)
+    if (bones_match !== null) {
+      return {
+        bone_name: bones_match[1],
+        property: bones_match[2]
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Create a reverse mapping: source bone name -> array of target bone names
+   * Useful when original map is target -> source but processing needs source -> targets.
+   */
+  static reverse_bone_mapping (bone_mappings: Map<string, string>): Map<string, string[]> {
+    const reverse_mappings = new Map<string, string[]>()
+    bone_mappings.forEach((source_bone_name, target_bone_name) => {
+      if (!reverse_mappings.has(source_bone_name)) {
+        reverse_mappings.set(source_bone_name, [])
+      }
+
+      const target_list = reverse_mappings.get(source_bone_name)
+      if (target_list !== undefined) {
+        target_list.push(target_bone_name)
+      }
+    })
+
+    return reverse_mappings
+  }
+
+  /**
+   * Create a reverse mapping for one-to-one use cases: source bone name -> target bone name.
+   * If multiple targets map to the same source, the first mapping wins.
+   */
+  static reverse_bone_mapping_one_to_one (bone_mappings: Map<string, string>): Map<string, string> {
+    const reverse_mapping = new Map<string, string>()
+
+    bone_mappings.forEach((source_bone_name, target_bone_name) => {
+      if (!reverse_mapping.has(source_bone_name)) {
+        reverse_mapping.set(source_bone_name, target_bone_name)
+      }
+    })
+
+    return reverse_mapping
+  }
+
+  /**
+   * Clone a skeleton into a detached working copy for retargeting.
+   *
+   * Why this exists instead of the native three.js `Skeleton.clone()`:
+   * - `Skeleton.clone()` does not guarantee a fully detached bone hierarchy suitable for isolated edits.
+   * - Our retargeting path needs stable non-bone root parent world transforms for pose offsets.
+   * - This function deep-clones bone hierarchies and recreates detached non-bone root parents using
+   *   decomposed world transforms, preventing mutation of live scene bones.
+   */
+  static clone_skeleton (source_skeleton: Skeleton): Skeleton {
+    const original_to_clone = new Map<Bone, Bone>()
+
+    const root_bones = source_skeleton.bones.filter((bone) =>
+      bone.parent === null || bone.parent.type !== 'Bone'
+    )
+
+    const detached_parent_cache = new Map<Object3D, Object3D>()
+
+    const ensure_detached_parent = (source_parent: Object3D): Object3D => {
+      const cached_parent = detached_parent_cache.get(source_parent)
+      if (cached_parent !== undefined) {
+        return cached_parent
+      }
+
+      const detached_parent = new Group()
+      source_parent.updateWorldMatrix(true, false)
+      source_parent.matrixWorld.decompose(detached_parent.position, detached_parent.quaternion, detached_parent.scale)
+      detached_parent.updateMatrixWorld(true)
+
+      detached_parent_cache.set(source_parent, detached_parent)
+      return detached_parent
+    }
+
+    root_bones.forEach((root_bone) => {
+      const cloned_root = root_bone.clone(true)
+
+      if (root_bone.parent !== null && root_bone.parent.type !== 'Bone') {
+        const detached_parent = ensure_detached_parent(root_bone.parent)
+        detached_parent.add(cloned_root)
+      }
+
+      const stack: Array<{ original: Bone, cloned: Bone }> = [{ original: root_bone, cloned: cloned_root }]
+
+      while (stack.length > 0) {
+        const pair = stack.pop()
+        if (pair === undefined) continue
+
+        original_to_clone.set(pair.original, pair.cloned)
+
+        const original_children = pair.original.children.filter(child => child.type === 'Bone') as Bone[]
+        const cloned_children = pair.cloned.children.filter(child => child.type === 'Bone') as Bone[]
+
+        for (let i = 0; i < original_children.length; i++) {
+          stack.push({
+            original: original_children[i],
+            cloned: cloned_children[i]
+          })
+        }
+      }
+    })
+
+    const cloned_bones = source_skeleton.bones
+      .map((bone) => original_to_clone.get(bone))
+      .filter((bone): bone is Bone => bone !== undefined)
+
+    const cloned_bone_inverses = source_skeleton.boneInverses.map((inverse) => inverse.clone())
+    const cloned_skeleton = new Skeleton(cloned_bones, cloned_bone_inverses)
+    cloned_skeleton.pose()
+
+    return cloned_skeleton
   }
 }

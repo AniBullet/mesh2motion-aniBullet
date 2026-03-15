@@ -1,5 +1,6 @@
+import { RetargetUtils } from '../RetargetUtils.ts'
 
-
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class HumanChainConfig {
   // Master list of human bone/joint names that we can use and part of the Mesh2Motion rig
   // this will always be the source config we start with for retargeting
@@ -43,14 +44,6 @@ export class HumanChainConfig {
     fingersPinkyR: ['mixamorigRightHandPinky1', 'mixamorigRightHandPinky2', 'mixamorigRightHandPinky3', 'mixamorigRightHandPinky4']
   }
 
-  // TODO: Have this algorithm work for ALL humanoid rigs, not just Mixamo
-  // right now they just use the simple bone mapping...which will have issues with bone roll
-  // the retargeting algorithm needs a source config and a target config for it to work
-  // this configuration will store the "chains" of joints for both source and target rigs
-  // we have all the source joints since that is the Mesh2Motion rigs, but we might not
-  // have all the target joints. We will need to effectively clone this "master" config and 
-  // modify it to only includes bones that are part of the mapping
-
   // then we can duplicate that source config to a target config. We can go through the bone
   // mapping and swap out all the source bone names for the target bone names
 
@@ -59,7 +52,6 @@ export class HumanChainConfig {
     const base_source_config = structuredClone(HumanChainConfig.mesh2motion_config)
     const flat_source_bone_names: string = this.flat_bone_name_list(bone_mapping.values()) // values store the Mesh2Motion bones
 
-    // TODO: Go through each chain and bone. If the bone has a bone mapping, keep it, if not, replace the value with an empty string
     for (const chain_name in base_source_config) {
       const bone_names_in_chain = base_source_config[chain_name]
       for (let i = 0; i < bone_names_in_chain.length; i++) {
@@ -92,8 +84,8 @@ export class HumanChainConfig {
   }
 
   public static build_custom_target_config (source_config: Record<string, string[]>, bone_mapping: Map<string, string>): Record<string, string[]> {
-    // swap the keys with value since it puts the Mesh2Motion bone names as values
-    const reverse_bone_mapping = new Map(Array.from(bone_mapping.entries()).map(([key, value]) => [value, key]))
+    // swap key/value so source (Mesh2Motion) bone names can resolve to target rig names
+    const reverse_bone_mapping = RetargetUtils.reverse_bone_mapping_one_to_one(bone_mapping)
 
     // our source config will only have the bones that need to be mapped. Non-mapped bones will be empty strings
     const custom_target_config: Record<string, string[]> = structuredClone(source_config)

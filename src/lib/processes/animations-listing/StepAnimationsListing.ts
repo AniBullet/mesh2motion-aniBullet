@@ -7,12 +7,13 @@ import {
 
 import { AnimationUtility } from './AnimationUtility.ts'
 import { AnimationLoader, type AnimationLoadProgress } from './AnimationLoader.ts'
+import { CustomAnimationImporter } from './CustomAnimationImporter.ts'
 
 import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { Utility } from '../../Utilities.ts'
 import { type ThemeManager } from '../../ThemeManager.ts'
 import { AnimationSearch } from './AnimationSearch.ts'
-import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
+import { type AnimationClipMetadata, type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
 export class StepAnimationsListing extends EventTarget {
@@ -33,7 +34,10 @@ export class StepAnimationsListing extends EventTarget {
   // we will use this to scale all position animation keyframes (uniform scale)
   private skeleton_scale: number = 1.0
 
+  private readonly custom_animation_importer: CustomAnimationImporter
+
   private _added_event_listeners: boolean = false
+  private is_loading_default_animations: boolean = false
 
   // enable status for mirroring animations
   public mirror_animations_enabled: boolean = false
@@ -57,6 +61,24 @@ export class StepAnimationsListing extends EventTarget {
     this.ui = UI.getInstance()
     this.animation_player = new AnimationPlayer()
     this.theme_manager = theme_manager
+
+    this.custom_animation_importer = new CustomAnimationImporter(this.animation_loader)
+
+    // fancy way to bind the import context by implementing the function
+    // from the CustomAnimationImporter and passing in the current context values. this allows
+    // the CustomAnimationImporter to be decoupled from the StepAnimationsListing
+    this.custom_animation_importer.set_import_context_provider(() => {
+      return {
+        skinned_meshes_to_animate: this.skinned_meshes_to_animate,
+        skeleton_scale: this.skeleton_scale
+      }
+    })
+
+    this.custom_animation_importer.addEventListener('import-success', (event: Event) => {
+      const new_clips = (event as CustomEvent<TransformedAnimationClipPair[]>).detail
+      this.animation_clips_loaded.push(...new_clips)
+      this.onAllAnimationsLoaded()
+    })
   }
 
   public begin (skeleton_type: SkeletonType, skeleton_scale: number): void {
@@ -78,7 +100,14 @@ export class StepAnimationsListing extends EventTarget {
       this.ui.dom_skinned_mesh_animation_tools.style.display = 'flex'
     }
 
+    // bone display toggle only works in animation preview since
+    // everything is setup by now
+    if (this.ui.dom_show_skeleton_container != null) {
+      this.ui.dom_show_skeleton_container.style.display = 'inline-flex'
+    }
+
     this.reset_step_data()
+    this.custom_animation_importer.set_enabled(!this.is_loading_default_animations)
 
     this.skeleton_type = skeleton_type
 
@@ -119,11 +148,26 @@ export class StepAnimationsListing extends EventTarget {
     return this.animation_clips_loaded.map(clip => clip.display_animation_clip)
   }
 
+  public get_animation_metadata (index: number): AnimationClipMetadata | null {
+    if (index < 0 || index >= this.animation_clips_loaded.length) {
+      return null
+    }
+
+    return this.animation_clips_loaded[index].metadata
+  }
+
+  public is_animation_custom (index: number): boolean {
+    return this.get_animation_metadata(index)?.source_type === 'custom-import'
+  }
+
   public load_and_apply_default_animation_to_skinned_mesh (final_skinned_meshes: SkinnedMesh[]): void {
     this.skinned_meshes_to_animate = final_skinned_meshes
 
     // Set the animations file path on the loader
     this.animation_loader.set_animations_file_path(this.animations_file_path)
+
+    this.is_loading_default_animations = true
+    this.custom_animation_importer.set_enabled(false)
 
     // Reset the animation clips loaded
     this.animation_clips_loaded = []
@@ -138,11 +182,15 @@ export class StepAnimationsListing extends EventTarget {
       })
       .catch((error: Error) => {
         console.error('Failed to load animations:', error)
+        this.is_loading_default_animations = false
+        this.custom_animation_importer.set_enabled(true)
         // You could emit an error event here or show a user-friendly message
       })
   }
 
   private onAllAnimationsLoaded (): void {
+    this.is_loading_default_animations = false
+    this.custom_animation_importer.set_enabled(true)
     // sort all animation names alphabetically
     this.animation_clips_loaded.sort((a: TransformedAnimationClipPair, b: TransformedAnimationClipPair) => {
       if (a.display_animation_clip.name < b.display_animation_clip.name) { return -1 }
@@ -152,7 +200,7 @@ export class StepAnimationsListing extends EventTarget {
 
     // create user interface with all available animation clips
     this.build_animation_clip_ui(
-      this.animation_clips_loaded.map(clip => clip.display_animation_clip),
+      this.animation_clips_loaded,
       this.theme_manager
     )
 
@@ -362,7 +410,7 @@ export class StepAnimationsListing extends EventTarget {
     this.play_animation(this.current_playing_index)
   }
 
-  public build_animation_clip_ui (animation_clips_to_load: AnimationClip[], theme_manager: ThemeManager): void {
+  public build_animation_clip_ui (animation_clips_to_load: TransformedAnimationClipPair[], theme_manager: ThemeManager): void {
     // Initialize AnimationSearch if not already done
     // we could switch skeleton types using navigation, so need to re-create in case this happens
     this.animation_search = new AnimationSearch('animation-filter', 'animations-items', theme_manager, this.skeleton_type)

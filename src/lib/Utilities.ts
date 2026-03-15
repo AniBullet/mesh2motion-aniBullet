@@ -217,7 +217,13 @@ export class Utility {
   }
 
   static calculate_bone_base_name (bone_name: string): string {
-    return bone_name.toLowerCase().replace(/(right|right_|r_|_right|_r|left|left_|_left|l_|_r|_l)/g, '')
+    // remove if bone name part if they have suffix
+    let normalized_bone_name: string = bone_name.toLowerCase().replace(/(_r|_l|_right|_left)$/, '')
+
+    // remove if the bone name part if they have prefix
+    normalized_bone_name = normalized_bone_name.replace(/^(r_|l_|right_|left_)/, '')
+
+    return normalized_bone_name
   }
 
   // Find the closest bone for raycaster using screen-space distance to account for camera zoom

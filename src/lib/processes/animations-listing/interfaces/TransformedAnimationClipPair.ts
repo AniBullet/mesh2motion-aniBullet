@@ -1,4 +1,11 @@
-import { type AnimationClip } from "three"
+import { type AnimationClip } from 'three'
+
+export type AnimationSourceType = 'default-library' | 'custom-import'
+
+export interface AnimationClipMetadata {
+  source_type: AnimationSourceType
+  tags: string[]
+}
 
 export interface TransformedAnimationClipPair {
   /**
@@ -14,4 +21,9 @@ export interface TransformedAnimationClipPair {
    * and downloaded by the user.
    */
   display_animation_clip: AnimationClip
+
+  /**
+   * Extendable metadata for this animation clip.
+   */
+  metadata: AnimationClipMetadata
 }
